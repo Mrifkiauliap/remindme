@@ -17,7 +17,11 @@ services:
     networks:
       - remindme_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-remindme}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
