@@ -184,7 +184,7 @@ Fitur Utama:
   - `.file my`: Melihat daftar file milik pengguna (filter berdasarkan `uploadedBy`).
   - `.file share [nama] [public/private]`: Mengubah status privasi URL publik file.
   - `.file send [nama] [doc/media]`: Meminta bot mengirim kembali file yang disimpan sebagai _Document_ (file mentah) atau _Media_ (gambar/video).
-  - `.ping`: Menampilkan statistik server (Uptime, Memory, OS, Node Version, Mode, dll). Fitur statistik detail hanya dapat diakses oleh Admin yang terdaftar di `ADMIN_NUMBERS`. Pengguna biasa hanya menerima balasan "Pong! 🏓".
+  - `.ping`: Menampilkan statistik server (Uptime, Memory, OS, Node Version, Mode, dll). Fitur statistik detail hanya dapat diakses oleh Admin yang terdaftar di `ADMIN_NUMBERS`. Pengguna biasa hanya menerima balasan "Pong!".
 
 ## 13. Sistem Reminder Kuliah Dinamis
 
