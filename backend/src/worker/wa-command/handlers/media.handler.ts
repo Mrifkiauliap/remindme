@@ -123,7 +123,7 @@ export class MediaHandler {
       if (sizeInMB > 20) {
         await this.waSender.sendText({
           chatId,
-          text: '❌ Gagal menyimpan! Ukuran file melebihi batas maksimal 20MB.',
+          text: '[ERROR] Gagal menyimpan! Ukuran file melebihi batas maksimal 20MB.',
           reply_to: messageId,
         });
         return;
@@ -201,7 +201,7 @@ export class MediaHandler {
 
     await this.waSender.sendText({
       chatId,
-      text: `✅ File berhasil disimpan!\n\nNama: *${namaBerkas}*\n\n_(File bersifat private secara default)_\n\nGunakan command:\n*${prefix}file send ${namaBerkas} doc* (untuk ambil file)\n*${prefix}file share ${namaBerkas} public* (untuk membagikan link publik)`,
+      text: `[BERHASIL] File berhasil disimpan!\n\nNama: *${namaBerkas}*\n\n_(File bersifat private secara default)_\n\nGunakan command:\n*${prefix}file send ${namaBerkas} doc* (untuk ambil file)\n*${prefix}file share ${namaBerkas} public* (untuk membagikan link publik)`,
       reply_to: messageId,
     });
   }

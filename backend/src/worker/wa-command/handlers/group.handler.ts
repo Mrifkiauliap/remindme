@@ -103,7 +103,7 @@ export class GroupHandler {
 
     await this.waSender.sendText({
       chatId,
-      text: `✅ *Berhasil!*\nGrup ini telah terdaftar di sistem dengan nama: *${finalNamaGrup}*\nUID: ${uid}\n\nSekarang Anda dapat menggunakan perintah bot di grup ini.`,
+      text: `[BERHASIL] *Berhasil!*\nGrup ini telah terdaftar di sistem dengan nama: *${finalNamaGrup}*\nUID: ${uid}\n\nSekarang Anda dapat menggunakan perintah bot di grup ini.`,
       reply_to,
     });
     return true;

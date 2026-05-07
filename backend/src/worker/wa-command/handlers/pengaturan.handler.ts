@@ -25,7 +25,7 @@ export class PengaturanHandler {
     if (!isGroup) {
       await this.waSender.sendText({
         chatId,
-        text: '❌ Pengaturan saat ini hanya tersedia untuk di dalam grup.',
+        text: '[ERROR] Pengaturan saat ini hanya tersedia untuk di dalam grup.',
         reply_to,
       });
       return;
@@ -48,7 +48,7 @@ export class PengaturanHandler {
 
     await this.waSender.sendText({
       chatId,
-      text: `❌ Pengaturan *${subCommand}* tidak dikenali.`,
+      text: `[ERROR] Pengaturan *${subCommand}* tidak dikenali.`,
       reply_to,
     });
   }
@@ -80,7 +80,7 @@ export class PengaturanHandler {
     if (!grup) {
       await this.waSender.sendText({
         chatId,
-        text: '❌ Grup ini belum terdaftar di sistem. Gunakan perintah daftar terlebih dahulu.',
+        text: '[ERROR] Grup ini belum terdaftar di sistem. Gunakan perintah daftar terlebih dahulu.',
         reply_to,
       });
       return;
@@ -93,24 +93,24 @@ export class PengaturanHandler {
     if (value === 'on' || value === 'off') {
       key = 'reminder_active';
       dbValue = value === 'on' ? 'true' : 'false';
-      replyMsg = `✅ Pengingat jadwal kuliah untuk grup ini telah *${value === 'on' ? 'Diaktifkan' : 'Dimatikan'}*.`;
+      replyMsg = `[BERHASIL] Pengingat jadwal kuliah untuk grup ini telah *${value === 'on' ? 'Diaktifkan' : 'Dimatikan'}*.`;
     } else if (!isNaN(Number(value))) {
       const minutes = parseInt(value, 10);
       if (minutes < 5 || minutes > 120) {
         await this.waSender.sendText({
           chatId,
-          text: '❌ Waktu pengingat harus antara 5 sampai 120 menit.',
+          text: '[ERROR] Waktu pengingat harus antara 5 sampai 120 menit.',
           reply_to,
         });
         return;
       }
       key = 'reminder_lead_time';
       dbValue = minutes.toString();
-      replyMsg = `✅ Waktu pengingat jadwal kuliah berhasil diubah menjadi *${minutes} menit* sebelum perkuliahan dimulai.`;
+      replyMsg = `[BERHASIL] Waktu pengingat jadwal kuliah berhasil diubah menjadi *${minutes} menit* sebelum perkuliahan dimulai.`;
     } else {
       await this.waSender.sendText({
         chatId,
-        text: '❌ Nilai pengaturan tidak valid.',
+        text: '[ERROR] Nilai pengaturan tidak valid.',
         reply_to,
       });
       return;

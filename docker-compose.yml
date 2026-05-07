@@ -4,6 +4,8 @@ services:
     image: postgres:16-alpine
     container_name: remindme_db
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}

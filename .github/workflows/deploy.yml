@@ -40,9 +40,7 @@ jobs:
             docker compose up -d --force-recreate backend cloudflared
 
             echo "==> Running database migrations..."
-            docker compose exec -T backend node -e "
-              const { drizzleKit } = require('drizzle-kit');
-            " || docker compose exec -T backend sh -c "cd /app && npx drizzle-kit push --config drizzle.config.js" || true
+            docker compose exec -T backend npx drizzle-kit push || true
 
             echo "==> Cleaning up unused Docker resources..."
             docker image prune -f

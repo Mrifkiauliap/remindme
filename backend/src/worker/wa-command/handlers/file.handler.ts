@@ -282,13 +282,13 @@ export class FileHandler {
 
       await this.waSender.sendText({
         chatId,
-        text: `✅ Berkas *${namaBerkas}* berhasil dihapus dari sistem.`,
+        text: `[BERHASIL] Berkas *${namaBerkas}* berhasil dihapus dari sistem.`,
         reply_to,
       });
     } catch (error) {
       this.waSender.sendText({
         chatId,
-        text: `❌ Gagal menghapus berkas: ${error.message}`,
+        text: `[ERROR] Gagal menghapus berkas: ${error.message}`,
         reply_to,
       });
     }
@@ -341,7 +341,7 @@ export class FileHandler {
 
     await this.waSender.sendText({
       chatId,
-      text: `✅ Status akses berkas *${namaBerkas}* berhasil diubah menjadi *${visibility.toUpperCase()}*.\n\n${
+      text: `[BERHASIL] Status akses berkas *${namaBerkas}* berhasil diubah menjadi *${visibility.toUpperCase()}*.\n\n${
         isPublic
           ? `Link publik dapat diakses di: ${berkas.url}`
           : 'Link file sekarang disembunyikan.'

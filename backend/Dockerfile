@@ -36,7 +36,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 
 # Copy tsconfig for tsconfig-paths at runtime
-COPY tsconfig.json ./
+COPY tsconfig.json drizzle.config.ts ./
+COPY src/db/schema ./src/db/schema
 
 EXPOSE 3000
 

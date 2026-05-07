@@ -22,7 +22,16 @@ export class AppConfigService {
   }
 
   get databaseUrl(): string {
-    return this.config.getOrThrow<string>('DATABASE_URL');
+    const directUrl = this.config.get<string>('DATABASE_URL');
+    if (directUrl) return directUrl;
+
+    // Fallback: rakit dari POSTGRES_* variables (dipakai saat deploy via Docker Compose)
+    const user = this.config.get<string>('POSTGRES_USER', 'postgres');
+    const pass = this.config.get<string>('POSTGRES_PASSWORD', 'secret');
+    const host = this.config.get<string>('POSTGRES_HOST', 'db');
+    const port = this.config.get<string>('POSTGRES_PORT', '5432');
+    const db = this.config.get<string>('POSTGRES_DB', 'remindme');
+    return `postgresql://${user}:${pass}@${host}:${port}/${db}`;
   }
 
   get redisUrl(): string {

@@ -28,7 +28,7 @@ export class ScheduleHandler {
     if (!isGroup) {
       await this.waSender.sendText({
         chatId,
-        text: '❌ Fitur jadwal saat ini hanya bisa digunakan di dalam grup kelas.',
+        text: '[ERROR] Fitur jadwal saat ini hanya bisa digunakan di dalam grup kelas.',
         reply_to,
       });
       return;
@@ -86,7 +86,7 @@ export class ScheduleHandler {
     ) {
       await this.waSender.sendText({
         chatId,
-        text: `❌ Hari *${hari}* tidak valid. Gunakan nama hari dalam bahasa Indonesia.`,
+        text: `[ERROR] Hari *${hari}* tidak valid. Gunakan nama hari dalam bahasa Indonesia.`,
         reply_to,
       });
       return;
@@ -96,7 +96,7 @@ export class ScheduleHandler {
     if (!jamMulai || !jamSelesai) {
       await this.waSender.sendText({
         chatId,
-        text: `❌ Format jam salah. Gunakan format *HH:MM-HH:MM* (misal: 08:00-10:00).`,
+        text: `[ERROR] Format jam salah. Gunakan format *HH:MM-HH:MM* (misal: 08:00-10:00).`,
         reply_to,
       });
       return;
@@ -112,7 +112,7 @@ export class ScheduleHandler {
     if (!grup) {
       await this.waSender.sendText({
         chatId,
-        text: '❌ Grup ini belum terdaftar di sistem.',
+        text: '[ERROR] Grup ini belum terdaftar di sistem.',
         reply_to,
       });
       return;
@@ -128,7 +128,7 @@ export class ScheduleHandler {
     if (!matkul) {
       await this.waSender.sendText({
         chatId,
-        text: `❌ Mata kuliah dengan kode *${kodeMatkul}* tidak ditemukan.`,
+        text: `[ERROR] Mata kuliah dengan kode *${kodeMatkul}* tidak ditemukan.`,
         reply_to,
       });
       return;
@@ -144,7 +144,7 @@ export class ScheduleHandler {
     if (!dosen) {
       await this.waSender.sendText({
         chatId,
-        text: `❌ Dosen dengan NIP *${nipDosen}* tidak ditemukan.`,
+        text: `[ERROR] Dosen dengan NIP *${nipDosen}* tidak ditemukan.`,
         reply_to,
       });
       return;
@@ -165,14 +165,14 @@ export class ScheduleHandler {
 
       await this.waSender.sendText({
         chatId,
-        text: `✅ *Jadwal Berhasil Ditambahkan!*\n\nMatkul: ${matkul.nama}\nDosen: ${dosen.nama}\nHari: ${hari}\nWaktu: ${jamMulai} - ${jamSelesai}\nRuangan: ${ruangan}\n\nPengingat kelas otomatis aktif untuk jadwal ini.`,
+        text: `[BERHASIL] *Jadwal Berhasil Ditambahkan!*\n\nMatkul: ${matkul.nama}\nDosen: ${dosen.nama}\nHari: ${hari}\nWaktu: ${jamMulai} - ${jamSelesai}\nRuangan: ${ruangan}\n\nPengingat kelas otomatis aktif untuk jadwal ini.`,
         reply_to,
       });
     } catch (e) {
       this.logger.error(e);
       await this.waSender.sendText({
         chatId,
-        text: `❌ Gagal menambahkan jadwal: Terjadi kesalahan di server.`,
+        text: `[ERROR] Gagal menambahkan jadwal: Terjadi kesalahan di server.`,
         reply_to,
       });
     }
@@ -193,7 +193,7 @@ export class ScheduleHandler {
     if (!grup) {
       await this.waSender.sendText({
         chatId,
-        text: '❌ Grup ini belum terdaftar di sistem.',
+        text: '[ERROR] Grup ini belum terdaftar di sistem.',
         reply_to,
       });
       return;

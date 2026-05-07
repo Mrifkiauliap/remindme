@@ -85,7 +85,7 @@ export class WaCommandService {
         if (!isAdmin) {
           await this.waSender.sendText({
             chatId,
-            text: 'Pong! 🏓',
+            text: 'Pong!',
             reply_to,
           });
           break;
@@ -103,14 +103,14 @@ export class WaCommandService {
         const heapUsed = (memoryUsage.heapUsed / 1024 / 1024).toFixed(2);
 
         const textPing =
-          `*PONG!* 🏓\n\n` +
+          `*PONG!*\n\n` +
           `*Server Info:*\n` +
           `- App: ${this.config.appName} (${this.config.appVersion})\n` +
           `- Uptime: ${days}d ${hours}h ${minutes}m ${seconds}s\n` +
           `- OS: ${process.platform} ${process.arch}\n` +
           `- Memory: RSS ${rss}MB | Heap ${heapUsed}/${heapTotal}MB\n` +
           `- Node: ${process.version}\n` +
-          `- Mode: ${this.config.isDevMode ? '🛠️ DEV' : '🚀 PROD'}\n\n` +
+          `- Mode: ${this.config.isDevMode ? 'DEV' : 'PROD'}\n\n` +
           `*Config Info:*\n` +
           `- WA Session: ${this.config.wahaSessionName}\n` +
           `- Prefix: ${this.config.wahaCommandPrefix}\n` +
