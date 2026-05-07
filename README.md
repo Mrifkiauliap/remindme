@@ -1,6 +1,6 @@
 # Reminder Me Bro
 
-Bot WhatsApp pintar berbasis **NestJS** untuk mengirimkan pengingat jadwal kuliah secara otomatis ke grup mahasiswa dan dosen, dilengkapi dengan fitur manajemen jadwal, manajemen berkas, dan pengaturan reminder per grup — semuanya bisa dikontrol langsung dari WhatsApp!
+Bot WhatsApp pintar berbasis **NestJS** untuk mengirimkan pengingat jadwal kuliah secara otomatis ke grup mahasiswa dan dosen, dilengkapi dengan fitur manajemen jadwal, manajemen berkas, dan pengaturan reminder per grup, semuanya bisa dikontrol langsung dari WhatsApp loh!
 
 ---
 
