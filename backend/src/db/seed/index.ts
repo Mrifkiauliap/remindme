@@ -1,4 +1,3 @@
-import { createId } from '@paralleldrive/cuid2';
 import * as dotenv from 'dotenv';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -44,6 +43,7 @@ async function seed() {
     let dataDosen: any[] = [];
     let dataMk: any[] = [];
     let dataJadwal: any[] = [];
+    let dataGrup: any[] = [];
     try {
       // Menggunakan require agar tidak menyebabkan error TypeScript di CI/CD
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -51,8 +51,9 @@ async function seed() {
       dataDosen = nowSeed.seedDosen || [];
       dataMk = nowSeed.seedMk || [];
       dataJadwal = nowSeed.seedJadwal || [];
+      dataGrup = nowSeed.seedGrup || [];
       console.log(
-        `📦 Loaded ${dataDosen.length} dosen, ${dataMk.length} MK, ${dataJadwal.length} jadwal dari now.seed.ts`,
+        `📦 Loaded ${dataDosen.length} dosen, ${dataMk.length} MK, ${dataJadwal.length} jadwal, ${dataGrup.length} grup dari now.seed.ts`,
       );
     } catch (e) {
       console.log(
@@ -61,7 +62,7 @@ async function seed() {
     }
 
     // 4. Dosen
-    console.log('👨‍🏫 Seeding Dosen...');
+    console.log('Seeding Dosen...');
     const mapDosen = new Map<string, number>(); // Nama -> ID Dosen
     if (dataDosen.length > 0) {
       const insertedDosen = await db
@@ -72,25 +73,26 @@ async function seed() {
     }
 
     // 5. Grup
-    console.log('👥 Seeding Grup...');
-    const [grupA, grupB] = await db
+    console.log('Seeding Grup...');
+    const grupToInsert =
+      dataGrup.length > 0
+        ? dataGrup
+        : [
+            {
+              uid: 'ti22a',
+              namaGrup: 'TI-22-A',
+              keterangan: 'Dummy Group A',
+            },
+          ];
+
+    const insertedGrup = await db
       .insert(schema.grup)
-      .values([
-        {
-          uid: createId(),
-          namaGrup: 'TI-22-A',
-          keterangan: 'Teknik Informatika 2022 Kelas A',
-        },
-        {
-          uid: createId(),
-          namaGrup: 'SI-22-B',
-          keterangan: 'Sistem Informasi 2022 Kelas B',
-        },
-      ])
+      .values(grupToInsert)
       .returning();
+    const mainGrup = insertedGrup[0];
 
     // 6. Mata Kuliah
-    console.log('📚 Seeding Mata Kuliah...');
+    console.log('Seeding Mata Kuliah...');
     const mapMk = new Map<string, number>(); // Kode MK -> ID MK
     if (dataMk.length > 0) {
       const insertedMk = await db
@@ -101,7 +103,7 @@ async function seed() {
     }
 
     // 7. Jadwal
-    console.log('📅 Seeding Jadwal...');
+    console.log('Seeding Jadwal...');
     if (dataJadwal.length > 0 && mapMk.size > 0 && mapDosen.size > 0) {
       const jadwalToInsert = dataJadwal.map((j) => {
         const mataKuliahId = mapMk.get(j.mkKode);
@@ -125,12 +127,20 @@ async function seed() {
         .values(jadwalToInsert)
         .returning();
 
-      // Assign ke grupA
-      const grupJadwalToInsert = insertedJadwal.map((j) => ({
-        grupId: grupA.id,
-        jadwalId: j.id,
-      }));
-      await db.insert(schema.grupJadwal).values(grupJadwalToInsert);
+      // 8. Tautkan semua jadwal ke semua grup yang di-seed
+      console.log('Linking all schedules to all seeded groups...');
+      if (insertedJadwal.length > 0 && insertedGrup.length > 0) {
+        const pivotValues: any[] = [];
+        for (const g of insertedGrup) {
+          for (const j of insertedJadwal) {
+            pivotValues.push({
+              grupId: g.id,
+              jadwalId: j.id,
+            });
+          }
+        }
+        await db.insert(schema.grupJadwal).values(pivotValues);
+      }
     }
 
     console.log('✅ Database seeded successfully!');

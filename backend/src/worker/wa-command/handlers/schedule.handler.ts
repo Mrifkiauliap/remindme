@@ -40,10 +40,16 @@ export class ScheduleHandler {
       return this.handleListJadwal(chatId, reply_to, 'hari_ini');
     } else if (subCommand === 'besok' || subCommand === 'tomorrow') {
       return this.handleListJadwal(chatId, reply_to, 'besok');
+    } else if (
+      subCommand === 'daftar' ||
+      subCommand === 'semua' ||
+      subCommand === 'all'
+    ) {
+      return this.handleAllSchedules(chatId, reply_to);
     } else {
       await this.waSender.sendText({
         chatId,
-        text: `*Menu Jadwal:*\n\n1. *${prefix}jadwal hari_ini*\n   Melihat jadwal kuliah & reminder grup ini hari ini.\n2. *${prefix}jadwal besok*\n   Melihat jadwal kuliah besok.\n3. *${prefix}jadwal tambah [KodeMatkul] [NIP_Dosen] [Hari] [JamMulai-JamSelesai] [Ruangan]*\n   Menambahkan jadwal baru.\n   Contoh: *${prefix}jadwal tambah IF101 DSN001 Senin 08:00-10:00 R.A1*`,
+        text: `*Menu Jadwal:*\n\n1. *${prefix}jadwal hari_ini*\n   Melihat jadwal kuliah & reminder grup ini hari ini.\n2. *${prefix}jadwal besok*\n   Melihat jadwal kuliah besok.\n3. *${prefix}jadwal daftar*\n   Melihat SEMUA daftar jadwal & ID (untuk ditautkan ke grup lain).\n4. *${prefix}jadwal tambah [KodeMatkul] [NIP_Dosen] [Hari] [JamMulai-JamSelesai] [Ruangan]*\n   Menambahkan jadwal baru.\n   Contoh: *${prefix}jadwal tambah IF101 DSN001 Senin 08:00-10:00 R.A1*`,
         reply_to,
       });
     }
@@ -173,7 +179,7 @@ export class ScheduleHandler {
 
       await this.waSender.sendText({
         chatId,
-        text: `[BERHASIL] *Jadwal Berhasil Ditambahkan!*\n\nMatkul: ${matkul.nama}\nDosen: ${dosen.nama}\nHari: ${hari}\nWaktu: ${jamMulai} - ${jamSelesai}\nRuangan: ${ruangan}\n\nPengingat kelas otomatis aktif untuk jadwal ini.`,
+        text: `[BERHASIL] *Jadwal Berhasil Ditambahkan!*\n\n*ID JADWAL:* ${inserted[0].id}\nMatkul: ${matkul.nama}\nDosen: ${dosen.nama}\nHari: ${hari}\nWaktu: ${jamMulai} - ${jamSelesai}\nRuangan: ${ruangan}\n\nPengingat kelas otomatis aktif untuk jadwal ini. Gunakan ID di atas untuk menautkan jadwal ini ke grup lain via perintah .grup-jadwal`,
         reply_to,
       });
     } catch (e) {
@@ -258,6 +264,37 @@ export class ScheduleHandler {
     await this.waSender.sendText({
       chatId,
       text: `*Jadwal Kuliah ${type === 'hari_ini' ? 'Hari Ini' : 'Besok'} (${hariTarget}):*\n\n${listText}\n\n_Sistem akan otomatis mengirimkan reminder sebelum jam kuliah dimulai._`,
+      reply_to,
+    });
+  }
+
+  private async handleAllSchedules(chatId: string, reply_to?: string) {
+    const allJadwals = await this.drizzle.db.query.jadwalMataKuliah.findMany({
+      with: {
+        mataKuliah: true,
+        dosen: true,
+      },
+      orderBy: [schema.jadwalMataKuliah.hari],
+    });
+
+    if (allJadwals.length === 0) {
+      await this.waSender.sendText({
+        chatId,
+        text: 'Belum ada jadwal yang terdaftar di sistem.',
+        reply_to,
+      });
+      return;
+    }
+
+    const listText = allJadwals
+      .map((j) => {
+        return `*ID: ${j.id}*\n${j.mataKuliah.nama}\n${j.dosen.nama}\n${j.hari} | ${j.jamMulai.slice(0, 5)} - ${j.jamSelesai.slice(0, 5)}\n${j.ruangan || '-'}`;
+      })
+      .join('\n\n');
+
+    await this.waSender.sendText({
+      chatId,
+      text: `*DAFTAR SELURUH JADWAL (MASTER DATA):*\n\n${listText}\n\n_Gunakan ID di atas untuk perintah .grup-jadwal [ID]_`,
       reply_to,
     });
   }
