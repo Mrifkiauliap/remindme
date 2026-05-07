@@ -5,7 +5,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # ─── Stage 2: Builder ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
@@ -28,7 +28,7 @@ ENV NODE_ENV=production
 # Install only prod deps
 RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built artifacts
 COPY --from=builder /app/dist ./dist
