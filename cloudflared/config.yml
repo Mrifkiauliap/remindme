@@ -1,0 +1,10 @@
+tunnel: <YOUR_TUNNEL_ID>
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Main backend app
+  - hostname: remindme.gentech.my.id
+    service: http://backend:3000
+
+  # Catch-all: return 404 for unknown hostnames
+  - service: http_status:404

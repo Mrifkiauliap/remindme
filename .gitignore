@@ -1,0 +1,34 @@
+# Compiled output
+backend/dist/
+backend/node_modules/
+backend/build/
+
+# Environment files
+backend/.env
+backend/.env.*.local
+.env
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Cloudflared credentials (SENSITIVE - never commit!)
+cloudflared/credentials.json
+cloudflared/*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+# Test coverage
+backend/coverage/
+
+# Temp
+*.tmp
+*.temp
