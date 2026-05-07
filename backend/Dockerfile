@@ -38,6 +38,7 @@ RUN mkdir -p public/uploads
 # Copy tsconfig for tsconfig-paths at runtime
 COPY tsconfig.json drizzle.config.ts ./
 COPY src/db/schema ./src/db/schema
+COPY src/db/seed ./src/db/seed
 
 EXPOSE 3000
 
