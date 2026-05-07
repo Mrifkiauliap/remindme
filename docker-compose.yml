@@ -12,6 +12,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-remindme}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
     networks:
       - remindme_net
     healthcheck:
@@ -31,8 +33,6 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-secret}@db:5432/${POSTGRES_DB:-remindme}
-    ports:
-      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy

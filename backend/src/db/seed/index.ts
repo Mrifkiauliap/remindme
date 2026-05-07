@@ -40,33 +40,38 @@ async function seed() {
       isActive: true,
     });
 
-    // 3. Dosen
-    console.log('👨‍🏫 Seeding Dosen...');
-    const [dosen1, dosen2, dosen3] = await db
-      .insert(schema.dosen)
-      .values([
-        {
-          nip: '198001012005011001',
-          nama: 'Dr. Ir. Budiarto, M.T.',
-          nomorWa: '6281234567890',
-          email: 'budiarto@univ.ac.id',
-        },
-        {
-          nip: '198505202010122002',
-          nama: 'Siti Aminah, S.Kom., M.Cs.',
-          nomorWa: '6289876543210',
-          email: 'siti@univ.ac.id',
-        },
-        {
-          nip: '199012312020011005',
-          nama: 'Eko Prasetyo, M.T.',
-          nomorWa: '6281122334455',
-          email: 'eko@univ.ac.id',
-        },
-      ])
-      .returning();
+    // 3. Load Data Privacy
+    let dataDosen: any[] = [];
+    let dataMk: any[] = [];
+    let dataJadwal: any[] = [];
+    try {
+      // Menggunakan require agar tidak menyebabkan error TypeScript di CI/CD
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nowSeed = require('./now.seed');
+      dataDosen = nowSeed.seedDosen || [];
+      dataMk = nowSeed.seedMk || [];
+      dataJadwal = nowSeed.seedJadwal || [];
+      console.log(
+        `📦 Loaded ${dataDosen.length} dosen, ${dataMk.length} MK, ${dataJadwal.length} jadwal dari now.seed.ts`,
+      );
+    } catch (e) {
+      console.log(
+        '⚠️ now.seed.ts tidak ditemukan. Melewati seeding data privacy.',
+      );
+    }
 
-    // 4. Grup
+    // 4. Dosen
+    console.log('👨‍🏫 Seeding Dosen...');
+    const mapDosen = new Map<string, number>(); // Nama -> ID Dosen
+    if (dataDosen.length > 0) {
+      const insertedDosen = await db
+        .insert(schema.dosen)
+        .values(dataDosen)
+        .returning();
+      insertedDosen.forEach((d) => mapDosen.set(d.nama, d.id));
+    }
+
+    // 5. Grup
     console.log('👥 Seeding Grup...');
     const [grupA, grupB] = await db
       .insert(schema.grup)
@@ -84,91 +89,49 @@ async function seed() {
       ])
       .returning();
 
-    // 5. Mata Kuliah
+    // 6. Mata Kuliah
     console.log('📚 Seeding Mata Kuliah...');
-    const [mkWeb, mkStruct, mkProject] = await db
-      .insert(schema.mataKuliah)
-      .values([
-        {
-          kode: 'IF101',
-          nama: 'Pemrograman Web',
-          sks: 3,
-        },
-        {
-          kode: 'IF102',
-          nama: 'Struktur Data',
-          sks: 4,
-        },
-        {
-          kode: 'SI201',
-          nama: 'Manajemen Proyek TI',
-          sks: 2,
-        },
-      ])
-      .returning();
+    const mapMk = new Map<string, number>(); // Kode MK -> ID MK
+    if (dataMk.length > 0) {
+      const insertedMk = await db
+        .insert(schema.mataKuliah)
+        .values(dataMk)
+        .returning();
+      insertedMk.forEach((m) => mapMk.set(m.kode, m.id));
+    }
 
-    // 6. Jadwal
+    // 7. Jadwal
     console.log('📅 Seeding Jadwal...');
-    await db.insert(schema.jadwalMataKuliah).values([
-      {
-        mataKuliahId: mkWeb.id,
-        dosenId: dosen2.id,
-        grupId: grupA.id,
-        hari: 'Senin',
-        jamMulai: '08:00:00',
-        jamSelesai: '10:30:00',
-        ruangan: 'Lab Terpadu 1',
-      },
-      {
-        mataKuliahId: mkStruct.id,
-        dosenId: dosen1.id,
-        grupId: grupA.id,
-        hari: 'Selasa',
-        jamMulai: '13:00:00',
-        jamSelesai: '15:30:00',
-        ruangan: 'Gedung C 302',
-      },
-      {
-        mataKuliahId: mkProject.id,
-        dosenId: dosen3.id,
-        grupId: grupB.id,
-        hari: 'Rabu',
-        jamMulai: '10:00:00',
-        jamSelesai: '12:00:00',
-        ruangan: 'Gedung B 101',
-      },
-    ]);
+    if (dataJadwal.length > 0 && mapMk.size > 0 && mapDosen.size > 0) {
+      const jadwalToInsert = dataJadwal.map((j) => {
+        const mataKuliahId = mapMk.get(j.mkKode);
+        const dosenId = mapDosen.get(j.dosenNama);
+        if (!mataKuliahId || !dosenId) {
+          throw new Error(
+            `Data relasi tidak ditemukan untuk jadwal MK ${j.mkKode} dosen ${j.dosenNama}`,
+          );
+        }
+        return {
+          mataKuliahId,
+          dosenId,
+          hari: j.hari,
+          jamMulai: j.jamMulai,
+          jamSelesai: j.jamSelesai,
+          ruangan: j.ruangan,
+        };
+      });
+      const insertedJadwal = await db
+        .insert(schema.jadwalMataKuliah)
+        .values(jadwalToInsert)
+        .returning();
 
-    // 7. Mahasiswa (Ngetes .me)
-    console.log('🎓 Seeding Mahasiswa...');
-    const [mhs1, mhs2] = await db
-      .insert(schema.mahasiswa)
-      .values([
-        {
-          nim: '230504089',
-          nama: 'M Rifki Aulia P',
-          nomorWa: '247622363250777@lid', // Nomor testing lu
-        },
-        {
-          nim: '2200018999',
-          nama: 'Dummy Student',
-          nomorWa: '62895346200506',
-        },
-      ])
-      .returning();
-
-    // 8. Mahasiswa Grup & Dosen Grup
-    console.log('🔗 Seeding Relasi Grup...');
-    await db.insert(schema.mahasiswaGrup).values([
-      {
-        mahasiswaId: mhs1.id,
+      // Assign ke grupA
+      const grupJadwalToInsert = insertedJadwal.map((j) => ({
         grupId: grupA.id,
-      },
-      {
-        mahasiswaId: mhs2.id,
-        grupId: grupB.id,
-      },
-    ]);
+        jadwalId: j.id,
+      }));
+      await db.insert(schema.grupJadwal).values(grupJadwalToInsert);
+    }
 
     console.log('✅ Database seeded successfully!');
   } catch (error) {

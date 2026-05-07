@@ -3,7 +3,7 @@ import { DrizzleService } from '@/db/drizzle.service';
 import * as schema from '@/db/schema/schema';
 import { Injectable, Logger } from '@nestjs/common';
 import dayjs from 'dayjs';
-import { and, asc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { WaSenderService } from '../../wa-sender/wa-sender.service';
 
 @Injectable()
@@ -152,15 +152,23 @@ export class ScheduleHandler {
 
     // 4. Insert Jadwal
     try {
-      await this.drizzle.db.insert(schema.jadwalMataKuliah).values({
+      const inserted = await this.drizzle.db
+        .insert(schema.jadwalMataKuliah)
+        .values({
+          mataKuliahId: matkul.id,
+          dosenId: dosen.id,
+          hari: hari as any,
+          jamMulai: `${jamMulai}:00`,
+          jamSelesai: `${jamSelesai}:00`,
+          ruangan: ruangan,
+          isActive: true,
+        })
+        .returning();
+
+      // Insert pivot grupJadwal
+      await this.drizzle.db.insert(schema.grupJadwal).values({
         grupId: grup.id,
-        mataKuliahId: matkul.id,
-        dosenId: dosen.id,
-        hari: hari as any,
-        jamMulai: `${jamMulai}:00`,
-        jamSelesai: `${jamSelesai}:00`,
-        ruangan: ruangan,
-        isActive: true,
+        jadwalId: inserted[0].id,
       });
 
       await this.waSender.sendText({
@@ -215,18 +223,22 @@ export class ScheduleHandler {
     ];
     const hariTarget = hariIndo[now.day()] as any;
 
-    const jadwals = await this.drizzle.db.query.jadwalMataKuliah.findMany({
-      where: and(
-        eq(schema.jadwalMataKuliah.grupId, grup.id),
-        eq(schema.jadwalMataKuliah.hari, hariTarget),
-        eq(schema.jadwalMataKuliah.isActive, true),
-      ),
+    const grupJadwals = await this.drizzle.db.query.grupJadwal.findMany({
+      where: eq(schema.grupJadwal.grupId, grup.id),
       with: {
-        mataKuliah: true,
-        dosen: true,
+        jadwal: {
+          with: {
+            mataKuliah: true,
+            dosen: true,
+          },
+        },
       },
-      orderBy: [asc(schema.jadwalMataKuliah.jamMulai)],
     });
+
+    const jadwals = grupJadwals
+      .map((gj) => gj.jadwal)
+      .filter((j) => j && j.hari === hariTarget && j.isActive)
+      .sort((a, b) => a.jamMulai.localeCompare(b.jamMulai));
 
     if (jadwals.length === 0) {
       await this.waSender.sendText({

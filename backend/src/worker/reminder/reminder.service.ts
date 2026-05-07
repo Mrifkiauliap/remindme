@@ -31,8 +31,8 @@ export class ReminderService {
     });
   }
 
-  // Cron job jalan tiap 5 menit, jam 07.00 - 18.00, Senin - Jumat
-  @Cron('0 */5 7-18 * * 1-5')
+  // Cron job jalan tiap 10 menit, jam 07.00 - 18.00, Senin - Sabtu
+  @Cron('0 */10 7-18 * * 1-6')
   async handleCron() {
     this.logger.log('Menjalankan cron job reminder jadwal kuliah...');
 
@@ -56,8 +56,8 @@ export class ReminderService {
     ];
     const hariIni = hariIndo[now.day()] as (typeof hariEnum.enumValues)[number];
 
-    if (hariIni === 'Sabtu' || hariIni === 'Minggu') {
-      return; // Fallback jika cron tetap trigger di weekend
+    if (hariIni === 'Minggu') {
+      return; // Hanya abaikan hari Minggu
     }
 
     try {
@@ -73,8 +73,12 @@ export class ReminderService {
         with: {
           dosen: true,
           mataKuliah: true,
-          grup: {
-            with: { mahasiswaGrups: { with: { mahasiswa: true } } },
+          grupJadwals: {
+            with: {
+              grup: {
+                with: { mahasiswaGrups: { with: { mahasiswa: true } } },
+              },
+            },
           },
         },
       });
@@ -104,81 +108,81 @@ export class ReminderService {
           continue; // Lewati jika sudah dikirim hari ini
         }
 
-        // Ambil pengaturan grup
-        const pengaturanGrup = await this.drizzle.db.query.pengaturan.findMany({
-          where: eq(schema.pengaturan.grupId, jadwal.grup.id),
-        });
-
-        const activeSetting = pengaturanGrup.find(
-          (p) => p.key === 'reminder_active',
-        );
-        const isReminderActive = activeSetting
-          ? activeSetting.value === 'true'
-          : true; // Default nyala
-
-        if (!isReminderActive) {
-          continue; // Lewati jika dimatikan untuk grup ini
-        }
-
-        const leadTimeSetting = pengaturanGrup.find(
-          (p) => p.key === 'reminder_lead_time',
-        );
-        const leadTimeMinutes = leadTimeSetting
-          ? parseInt(leadTimeSetting.value, 10)
-          : 30; // Default 30 menit
-
-        // Hitung sisa waktu sebelum kelas mulai
+        // Cek sisa waktu
         const [h, m, s] = jadwal.jamMulai.split(':');
         const scheduleTime = now
           .hour(parseInt(h))
           .minute(parseInt(m))
           .second(parseInt(s))
           .millisecond(0);
-
         const timeDiffMinutes = scheduleTime.diff(now, 'minute', true);
 
-        // Jika sisa waktu lebih besar dari leadTimeMinutes yang diatur, berarti belum saatnya dikirim (tunggu cron berikutnya)
-        if (timeDiffMinutes > leadTimeMinutes || timeDiffMinutes < 0) {
-          continue;
-        }
-
-        // Format Pesan
         const pesan = `*REMINDER KULIAH*\n\nMata Kuliah: ${jadwal.mataKuliah.nama}\nDosen: ${jadwal.dosen.nama}\nRuangan: ${jadwal.ruangan}\nWaktu: ${jadwal.jamMulai}\n\nMohon bersiap-siap.`;
 
-        // Kirim ke Grup WA (jika ada nomorWa)
-        if (jadwal.grup.nomorWa) {
-          const success = await this.waSender.sendText({
-            chatId: jadwal.grup.nomorWa,
-            text: pesan,
-          });
+        // Kirim ke semua grup terkait
+        for (const gj of jadwal.grupJadwals) {
+          const grupObj = gj.grup;
+          if (!grupObj) continue;
 
-          await this.drizzle.db.insert(reminderLog).values({
-            jadwalId: jadwal.id,
-            targetType: 'grup',
-            targetId: jadwal.grup.id,
-            nomorWa: jadwal.grup.nomorWa,
-            pesan: pesan,
-            status: success ? 'sent' : 'failed',
-            sentAt: success ? dayjs().toDate() : null,
-          });
-        } else {
-          // Fallback kirim ke masing-masing mahasiswa jika grup tidak punya WA
-          for (const mhsGrup of jadwal.grup.mahasiswaGrups) {
-            const mhs = mhsGrup.mahasiswa;
-            if (!mhs || !mhs.nomorWa) continue;
+          // Cek pengaturan reminder untuk grup ini
+          const pengaturanGrup =
+            await this.drizzle.db.query.pengaturan.findMany({
+              where: eq(schema.pengaturan.grupId, grupObj.id),
+            });
+          const activeSetting = pengaturanGrup.find(
+            (p) => p.key === 'reminder_active',
+          );
+          const isReminderActive = activeSetting
+            ? activeSetting.value === 'true'
+            : true;
+
+          if (!isReminderActive) continue;
+
+          const leadTimeSetting = pengaturanGrup.find(
+            (p) => p.key === 'reminder_lead_time',
+          );
+          const leadTimeMinutes = leadTimeSetting
+            ? parseInt(leadTimeSetting.value, 10)
+            : 30;
+
+          if (timeDiffMinutes > leadTimeMinutes || timeDiffMinutes < 0) {
+            continue; // Lewati jika belum saatnya atau sudah lewat
+          }
+
+          if (grupObj.nomorWa) {
             const success = await this.waSender.sendText({
-              chatId: mhs.nomorWa,
+              chatId: grupObj.nomorWa,
               text: pesan,
             });
+
             await this.drizzle.db.insert(reminderLog).values({
               jadwalId: jadwal.id,
-              targetType: 'mahasiswa',
-              targetId: mhs.id,
-              nomorWa: mhs.nomorWa,
+              targetType: 'grup',
+              targetId: grupObj.id,
+              nomorWa: grupObj.nomorWa,
               pesan: pesan,
               status: success ? 'sent' : 'failed',
               sentAt: success ? dayjs().toDate() : null,
             });
+          } else {
+            // Fallback kirim ke masing-masing mahasiswa jika grup tidak punya WA
+            for (const mhsGrup of grupObj.mahasiswaGrups) {
+              const mhs = mhsGrup.mahasiswa;
+              if (!mhs || !mhs.nomorWa) continue;
+              const success = await this.waSender.sendText({
+                chatId: mhs.nomorWa,
+                text: pesan,
+              });
+              await this.drizzle.db.insert(reminderLog).values({
+                jadwalId: jadwal.id,
+                targetType: 'mahasiswa',
+                targetId: mhs.id,
+                nomorWa: mhs.nomorWa,
+                pesan: pesan,
+                status: success ? 'sent' : 'failed',
+                sentAt: success ? dayjs().toDate() : null,
+              });
+            }
           }
         }
 

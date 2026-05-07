@@ -35,7 +35,11 @@ export const reminderStatusEnum = pgEnum('reminder_status', [
   'failed',
 ]);
 
-export const targetTypeEnum = pgEnum('target_type', ['mahasiswa', 'dosen', 'grup']);
+export const targetTypeEnum = pgEnum('target_type', [
+  'mahasiswa',
+  'dosen',
+  'grup',
+]);
 
 // ─── User (API Key Auth) ──────────────────────────────────────────────────────
 export const user = pgTable('user', {
@@ -127,9 +131,6 @@ export const jadwalMataKuliah = pgTable('jadwal_mata_kuliah', {
   dosenId: integer('dosen_id')
     .notNull()
     .references(() => dosen.id, { onDelete: 'restrict' }),
-  grupId: integer('grup_id')
-    .notNull()
-    .references(() => grup.id, { onDelete: 'restrict' }),
   hari: hariEnum('hari').notNull(),
   jamMulai: time('jam_mulai').notNull(),
   jamSelesai: time('jam_selesai').notNull(),
@@ -137,6 +138,23 @@ export const jadwalMataKuliah = pgTable('jadwal_mata_kuliah', {
   isActive: boolean('is_active').notNull().default(true),
   ...timestamps,
 });
+
+// ─── Grup Jadwal (Pivot Table) ───────────────────────────────────────────────
+export const grupJadwal = pgTable(
+  'grup_jadwal',
+  {
+    grupId: integer('grup_id')
+      .notNull()
+      .references(() => grup.id, { onDelete: 'cascade' }),
+    jadwalId: integer('jadwal_id')
+      .notNull()
+      .references(() => jadwalMataKuliah.id, { onDelete: 'cascade' }),
+    ...timestamps,
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.grupId, t.jadwalId] }),
+  }),
+);
 
 // ─── Reminder Log ─────────────────────────────────────────────────────────────
 export const reminderLog = pgTable('reminder_log', {
@@ -179,7 +197,7 @@ export const pengaturan = pgTable('pengaturan', {
 export const grupRelations = relations(grup, ({ many }) => ({
   mahasiswaGrups: many(mahasiswaGrup),
   dosenGrups: many(dosenGrup),
-  jadwals: many(jadwalMataKuliah),
+  grupJadwals: many(grupJadwal),
 }));
 
 export const mahasiswaRelations = relations(mahasiswa, ({ many }) => ({
@@ -228,10 +246,7 @@ export const jadwalMataKuliahRelations = relations(
       fields: [jadwalMataKuliah.dosenId],
       references: [dosen.id],
     }),
-    grup: one(grup, {
-      fields: [jadwalMataKuliah.grupId],
-      references: [grup.id],
-    }),
+    grupJadwals: many(grupJadwal),
     reminderLogs: many(reminderLog),
   }),
 );
@@ -239,6 +254,17 @@ export const jadwalMataKuliahRelations = relations(
 export const reminderLogRelations = relations(reminderLog, ({ one }) => ({
   jadwal: one(jadwalMataKuliah, {
     fields: [reminderLog.jadwalId],
+    references: [jadwalMataKuliah.id],
+  }),
+}));
+
+export const grupJadwalRelations = relations(grupJadwal, ({ one }) => ({
+  grup: one(grup, {
+    fields: [grupJadwal.grupId],
+    references: [grup.id],
+  }),
+  jadwal: one(jadwalMataKuliah, {
+    fields: [grupJadwal.jadwalId],
     references: [jadwalMataKuliah.id],
   }),
 }));
@@ -253,6 +279,7 @@ export const schema = {
   grup,
   mataKuliah,
   jadwalMataKuliah,
+  grupJadwal,
   reminderLog,
   berkas,
   pengaturan,
@@ -263,6 +290,7 @@ export const schema = {
   dosenGrupRelations,
   mataKuliahRelations,
   jadwalMataKuliahRelations,
+  grupJadwalRelations,
   reminderLogRelations,
 };
 

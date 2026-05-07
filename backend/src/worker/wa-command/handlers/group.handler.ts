@@ -2,7 +2,7 @@ import { AppConfigService } from '@/common/config/config.service';
 import { DrizzleService } from '@/db/drizzle.service';
 import * as schema from '@/db/schema/schema';
 import { Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { WaSenderService } from '../../wa-sender/wa-sender.service';
 
 @Injectable()
@@ -128,6 +128,128 @@ export class GroupHandler {
     await this.waSender.sendText({
       chatId,
       text: `*Info Grup*\n\nNama: ${grup.namaGrup}\nUID: ${grup.uid}\nID WA: ${grup.nomorWa}\nKeterangan: ${grup.keterangan || '-'}`,
+      reply_to,
+    });
+  }
+
+  async handleGrupJadwal(
+    chatId: string,
+    senderId: string,
+    args: string[],
+    reply_to?: string,
+  ) {
+    // Pastikan ini adalah grup yang terdaftar
+    const [grup] = await this.drizzle.db
+      .select()
+      .from(schema.grup)
+      .where(eq(schema.grup.nomorWa, chatId))
+      .limit(1);
+
+    if (!grup) {
+      await this.waSender.sendText({
+        chatId,
+        text: `[ERROR] Grup ini belum terdaftar di sistem.`,
+        reply_to,
+      });
+      return;
+    }
+
+    const prefix = this.config.wahaCommandPrefix;
+    if (args.length === 0) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Format salah.\n\n*Tambah Jadwal ke Grup:*\n${prefix}grup-jadwal [ID Jadwal]\nContoh: ${prefix}grup-jadwal 5\n\n*Hapus Jadwal dari Grup:*\n${prefix}grup-jadwal hapus [ID Jadwal]\nContoh: ${prefix}grup-jadwal hapus 5`,
+        reply_to,
+      });
+      return;
+    }
+
+    const subCommand = args[0].toLowerCase();
+
+    if (subCommand === 'hapus') {
+      const jadwalId = parseInt(args[1], 10);
+      if (isNaN(jadwalId)) {
+        await this.waSender.sendText({
+          chatId,
+          text: `[ERROR] ID Jadwal tidak valid.`,
+          reply_to,
+        });
+        return;
+      }
+
+      await this.drizzle.db
+        .delete(schema.grupJadwal)
+        .where(
+          and(
+            eq(schema.grupJadwal.grupId, grup.id),
+            eq(schema.grupJadwal.jadwalId, jadwalId),
+          ),
+        );
+
+      await this.waSender.sendText({
+        chatId,
+        text: `[BERHASIL] Jadwal ID ${jadwalId} berhasil dihapus dari grup ini.`,
+        reply_to,
+      });
+      return;
+    }
+
+    // Tambah jadwal
+    const jadwalId = parseInt(args[0], 10);
+    if (isNaN(jadwalId)) {
+      await this.waSender.sendText({
+        chatId,
+        text: `[ERROR] ID Jadwal tidak valid.`,
+        reply_to,
+      });
+      return;
+    }
+
+    // Cek apakah jadwal tersebut ada
+    const [jadwal] = await this.drizzle.db
+      .select()
+      .from(schema.jadwalMataKuliah)
+      .where(eq(schema.jadwalMataKuliah.id, jadwalId))
+      .limit(1);
+
+    if (!jadwal) {
+      await this.waSender.sendText({
+        chatId,
+        text: `[ERROR] Jadwal dengan ID ${jadwalId} tidak ditemukan.`,
+        reply_to,
+      });
+      return;
+    }
+
+    // Cek apakah sudah ada
+    const [existing] = await this.drizzle.db
+      .select()
+      .from(schema.grupJadwal)
+      .where(
+        and(
+          eq(schema.grupJadwal.grupId, grup.id),
+          eq(schema.grupJadwal.jadwalId, jadwalId),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      await this.waSender.sendText({
+        chatId,
+        text: `[ERROR] Jadwal ID ${jadwalId} sudah tertaut di grup ini.`,
+        reply_to,
+      });
+      return;
+    }
+
+    await this.drizzle.db.insert(schema.grupJadwal).values({
+      grupId: grup.id,
+      jadwalId: jadwal.id,
+    });
+
+    await this.waSender.sendText({
+      chatId,
+      text: `[BERHASIL] Jadwal ID ${jadwalId} berhasil ditambahkan ke grup ini!`,
       reply_to,
     });
   }

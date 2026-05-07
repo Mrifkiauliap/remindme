@@ -83,8 +83,19 @@ export class AppConfigService {
     return val ? val.split(',').map((n) => n.trim()) : [];
   }
 
+  get adminLogGroupId(): string | null {
+    return this.config.get<string>('ADMIN_LOG_GROUP_ID') ?? null;
+  }
+
+  private devModeOverride: boolean | null = null;
+
   get isDevMode(): boolean {
+    if (this.devModeOverride !== null) return this.devModeOverride;
     const val = this.config.get<string>('DEV_MODE', 'false');
     return val === 'true';
+  }
+
+  setRuntimeDevMode(val: boolean | null) {
+    this.devModeOverride = val;
   }
 }

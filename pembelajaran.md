@@ -188,13 +188,51 @@ Fitur Utama:
 
 ## 13. Sistem Reminder Kuliah Dinamis
 
-- **Arsitektur Cron**: Cron job di `ReminderService` berjalan setiap 5 menit untuk memantau jadwal kuliah.
+- **Arsitektur Cron**: Cron job di `ReminderService` berjalan setiap 10 menit untuk memantau jadwal kuliah.
 - **Konfigurasi Level Grup**: Menggunakan tabel `pengaturan`, pengaturan reminder bersifat modular dan per-grup.
   - Command: `.setting reminder [on/off]` (menghidupkan/mematikan reminder per grup).
   - Command: `.setting reminder [menit]` (mengatur _lead time_, yaitu berapa menit sebelum kelas dimulai reminder akan dikirim, default 30 menit, rentang 5-120 menit).
 - **Logika Eksekusi (DayJS)**: Memanfaatkan pustaka `dayjs` untuk penghitungan selisih waktu (`diff`) yang lebih akurat dan mudah dikelola dibandingkan native `Date()`. Pengecekan _lead time_ per-grup dilakukan secara _on-the-fly_ pada setiap jadwal yang ditemukan.
 - **Manajemen Jadwal via Bot**: Dosen/Admin dapat menambahkan jadwal kuliah melalui bot WhatsApp menggunakan command `.jadwal tambah [kode_matkul] [NIP] [hari] [jam] [ruangan]`.
 - **Informasi Jadwal**: Mahasiswa dapat mengecek jadwal dan info reminder menggunakan perintah `.jadwal hari_ini` dan `.jadwal besok`.
+
+## 14. Deployment, Keamanan Data & Pivot Jadwal (Eksperimen Lanjutan)
+
+### A. Dynamic Seeding (Menghindari Data Leak)
+
+- Data privasi real (seperti nama dosen asli dan jadwal real) dipisahkan ke `src/db/seed/now.seed.ts` yang dimasukkan ke `.gitignore`.
+- Di CI/CD (GitHub Actions), karena file `now.seed.ts` tidak ada, statis `import` akan menyebabkan TypeScript error saat _build_ (karena strict resolution). Solusinya: menggunakan `require('./now.seed')` di dalam blok `try-catch` sehingga TypeScript _build_ aman dan data hanya di-_seed_ secara dinamis jika file tersedia di _environment_ production/local secara manual.
+
+### B. Many-to-Many Relasi Jadwal (Tabel Pivot)
+
+- Sebelumnya, 1 Jadwal terikat secara kaku pada 1 WA Grup. Diubah menjadi relasi _Many-to-Many_ melalui tabel pivot `grup_jadwal`.
+- **Fleksibilitas:** 1 WA Grup bisa "berlangganan" ke banyak jadwal yang berbeda, dan 1 jadwal dapat di-_broadcast_ peringatannya ke beberapa grup sekaligus (contoh: mata kuliah gabungan).
+- **Inisialisasi via Bot:** Grup dapat menambahkan jadwal menggunakan perintah `.grup-jadwal [id_jadwal]` dan menghapusnya menggunakan `.grup-jadwal hapus [id_jadwal]`.
+
+### C. Alur Pendaftaran Praktis
+
+- **Admin Mendaftarkan Dosen:** `.daftar dosen [Nomor HP] [NIP/-] [Nama]`. Nomor lokal (`08xx`) secara otomatis dikonversi oleh Regex internal menjadi format server WAHA (`628xx@c.us`). NIP bisa di-generate dummy jika tidak diketahui.
+- **Mahasiswa Daftar Mandiri:** `.daftar [Nama]`. `nim` akan di-generate otomatis mengambil nomor pengirim agar mahasiswa tidak repot, dengan memastikan hasil _generate_ di-potong maksimal `20 karakter` agar tidak melempar error `varchar(20)` dari PostgreSQL.
+
+### D. Perluasan Jadwal Cron
+
+- Pengaturan `@Cron('0 */10 7-18 * * 1-6')` digunakan agar pengecekan berjalan pada rentang Senin - Sabtu (termasuk hari Sabtu untuk mata kuliah tertentu seperti KKN atau praktikum akhir pekan) setiap 10 menit.
+
+### E. Error Fallback & Admin Notification
+
+- Seluruh logika perintah di `WaCommandService` dibungkus dalam blok `try-catch`.
+- Jika terjadi _runtime error_ (misal: query gagal, API WAHA down, atau bug logika), sistem akan otomatis:
+  1. Memberi tahu pengguna bahwa terjadi kesalahan.
+  2. Mengirimkan pesan detail _error_ (termasuk _stack trace_ singkat) ke Admin.
+- **Prioritas Pengiriman:** Jika `WAHA_ADMIN_LOG_GROUP_ID` diatur di `.env`, bot akan mengirim notifikasi error ke grup tersebut. Jika kosong, bot akan mengirimkan pesan satu-per-satu (japri) ke semua nomor di `ADMIN_NUMBERS`.
+- Hal ini memudahkan _debugging_ secara _real-time_ dan mencegah _spam_ ke chat pribadi jika jumlah admin banyak.
+
+### F. Runtime Dev Mode Override
+
+- Fitur `DEV_MODE` (yang membatasi pengiriman pesan hanya ke Admin) dapat diubah saat bot berjalan tanpa perlu merestart server atau mengubah `.env`.
+- Perintah: `.dev on`, `.dev off`, dan `.dev reset`.
+- Keamanan: Hanya nomor yang terdaftar secara fisik di `ADMIN_NUMBERS` pada file `.env` yang diizinkan mengubah status ini.
+- Status _override_ disimpan di memori (akan kembali ke setelan `.env` jika aplikasi di-restart).
 
 ---
 
