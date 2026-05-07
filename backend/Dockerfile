@@ -32,8 +32,8 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Copy built artifacts
 COPY --from=builder /app/dist ./dist
-# Copy public folder (for static file serving / uploads)
-COPY --from=builder /app/public ./public
+# Create public/uploads folder
+RUN mkdir -p public/uploads
 
 # Copy tsconfig for tsconfig-paths at runtime
 COPY tsconfig.json drizzle.config.ts ./
