@@ -42,4 +42,4 @@ COPY src/db/seed ./src/db/seed
 
 EXPOSE 3000
 
-CMD ["node", "-r", "tsconfig-paths/register", "dist/main"]
+CMD ["sh", "-c", "node -r tsconfig-paths/register $(find dist -name main.js | head -n 1)"]
