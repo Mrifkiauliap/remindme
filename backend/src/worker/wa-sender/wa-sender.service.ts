@@ -91,9 +91,13 @@ export class WaSenderService implements OnApplicationBootstrap {
       const isAdmin = this.config.adminNumbers.some((adminNum) =>
         chatId.includes(adminNum),
       );
-      if (!isAdmin) {
+      const isLogGroup =
+        this.config.adminLogGroupId &&
+        chatId.includes(this.config.adminLogGroupId);
+
+      if (!isAdmin && !isLogGroup) {
         this.logger.warn(
-          `[DEV MODE] Blokir pengiriman ke non-admin: ${chatId}`,
+          `[DEV MODE] Blokir pengiriman ke non-admin/log-group: ${chatId}`,
         );
         return false;
       }
