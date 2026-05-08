@@ -29,6 +29,8 @@ export class BerkasController {
     const filename = parts.pop();
     const folder = parts.join('/');
 
+    if (!filename) throw new NotFoundException('Nama file tidak valid');
+
     return this.serveFile(folder, filename, res);
   }
 
