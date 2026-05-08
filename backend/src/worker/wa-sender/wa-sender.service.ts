@@ -80,9 +80,17 @@ export class WaSenderService implements OnApplicationBootstrap {
   async sendText(payload: SendTextPayload): Promise<boolean> {
     let { chatId } = payload;
 
-    // 0. Auto-append @c.us jika hanya angka (untuk kemudahan input di DB/Env)
+    // 0. Auto-append JID suffix jika tidak ada
     if (!chatId.includes('@')) {
-      chatId = `${chatId}@c.us`;
+      if (
+        chatId.length > 15 ||
+        chatId.startsWith('120363') ||
+        chatId.includes('-')
+      ) {
+        chatId = `${chatId}@g.us`;
+      } else {
+        chatId = `${chatId}@c.us`;
+      }
       payload.chatId = chatId; // Update payload asli
     }
 

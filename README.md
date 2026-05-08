@@ -18,37 +18,45 @@ Bot WhatsApp pintar berbasis **NestJS** untuk mengirimkan pengingat jadwal kulia
 | ---------------------------------------------------- | ------------------------------------------------------ |
 | `.jadwal hari_ini`                                   | Melihat jadwal kuliah hari ini beserta dosen & ruangan |
 | `.jadwal besok`                                      | Melihat jadwal kuliah besok                            |
+| `.jadwal daftar`                                     | Melihat semua daftar jadwal & ID Master                |
 | `.jadwal tambah [kode] [NIP] [hari] [jam] [ruangan]` | Menambahkan jadwal baru                                |
 
-### Pengaturan Reminder per Grup
+### Pengaturan Reminder & Tautan Grup
 
-| Command                 | Deskripsi                                               |
-| ----------------------- | ------------------------------------------------------- |
-| `.setting reminder on`  | Mengaktifkan pengingat otomatis untuk grup ini          |
-| `.setting reminder off` | Mematikan pengingat otomatis untuk grup ini             |
-| `.setting reminder 15`  | Mengubah waktu pengingat menjadi 15 menit sebelum kelas |
+| Command                              | Deskripsi                                               |
+| ------------------------------------ | ------------------------------------------------------- |
+| `.setting reminder on`               | Mengaktifkan pengingat otomatis untuk grup ini          |
+| `.setting reminder off`              | Mematikan pengingat otomatis untuk grup ini             |
+| `.setting reminder 15`               | Mengubah waktu pengingat menjadi 15 menit sebelum kelas |
+| `.grup-jadwal [ID1, ID2, ...]`       | Menautkan banyak jadwal sekaligus ke grup               |
+| `.grup-jadwal hapus [ID1, ID2, ...]` | Menghapus banyak tautan jadwal sekaligus                |
 
 ### Manajemen Berkas
 
-| Command                               | Deskripsi                                                  |
-| ------------------------------------- | ---------------------------------------------------------- |
-| `/save [nama]`                        | Simpan file (reply ke pesan file) — khusus mahasiswa/admin |
-| `.file list [nama dosen]`             | Lihat daftar file milik dosen tertentu                     |
-| `.file my`                            | Lihat semua file yang pernah kamu simpan                   |
-| `.file send [nama] [doc/media]`       | Kirim file sebagai dokumen atau media                      |
-| `.file share [nama] [public/private]` | Ubah status privasi file                                   |
+| Command                                     | Deskripsi                                                  |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `.file search [query]`                      | Mencari berkas berdasarkan potongan nama                   |
+| `.file rename [lama] [baru]`                | Mengubah nama berkas yang sudah disimpan                   |
+| `.file info [nama]`                         | Detail informasi berkas & Link (jika publik)               |
+| `.file stats`                               | Statistik storage server (Admin Only)                      |
+| `.file my`                                  | Lihat semua berkas milikmu (disertai format file)          |
+| `.file send [nama] [doc/media]`             | Kirim file sebagai dokumen atau media                      |
+| `.file share [nama1, ...] [public/private]` | Ubah status privasi banyak file (Multi-share)              |
+| `.file delete [nama1, ...]`                 | Hapus banyak file sekaligus (Multi-delete)                 |
+| `/save [nama]`                              | Simpan file (reply ke pesan file) — khusus mahasiswa/admin |
 
-> Dosen: file tersimpan **otomatis** saat mengirim dokumen ke grup.
-> Mahasiswa/Admin: harus **reply** ke pesan file dengan command `/save`.
+> Dosen: file tersimpan **otomatis** secara _silent_ (tanpa notifikasi) saat mengirim dokumen.
+> Mahasiswa/Admin: harus **reply** ke pesan file dengan command `.save` atau `/save`.
 
 ### Lainnya
 
-| Command               | Deskripsi                                     |
-| --------------------- | --------------------------------------------- |
-| `.daftar [Nama Grup]` | Mendaftarkan grup WhatsApp ke sistem          |
-| `.me`                 | Melihat profil kamu                           |
-| `.me-grup`            | Melihat informasi grup yang terdaftar         |
-| `.ping`               | Cek status server (info lengkap khusus admin) |
+| Command               | Deskripsi                                                       |
+| --------------------- | --------------------------------------------------------------- |
+| `.daftar [Nama Grup]` | Mendaftarkan grup WhatsApp ke sistem                            |
+| `.help`               | Menampilkan seluruh daftar perintah yang tersedia               |
+| `.me`                 | Melihat profil kamu                                             |
+| `.me-grup`            | Melihat informasi grup yang terdaftar                           |
+| `.ping`               | Cek status server (Uptime, Memori, OS - info lengkap via Admin) |
 
 ---
 
@@ -262,8 +270,9 @@ pnpm run db:seed
 
 - **API Key Auth**: Semua endpoint REST dilindungi header `x-api-key`
 - **Webhook HMAC**: Validasi HMAC SHA-512 untuk memastikan webhook dari WAHA
-- **File Private by Default**: Semua file yang diupload bersifat private, hanya bisa diakses jika di-share secara eksplisit
-- **Dev Mode**: Saat `DEV_MODE=true`, bot hanya mengirim pesan ke nomor admin (aman untuk testing)
+- **Startup Notification**: Server mengirimkan notifikasi status ke Grup Log Admin saat berhasil dijalankan/update (CI/CD check).
+- **File Private by Default**: Semua file yang diupload bersifat private, hanya bisa diakses jika di-share secara eksplisit.
+- **Dev Mode**: Saat `DEV_MODE=true`, pesan hanya dikirim ke `ADMIN_NUMBERS` atau `ADMIN_LOG_GROUP_ID`.
 - **Credentials Cloudflare**: File `credentials.json` diabaikan oleh `.gitignore` dan tidak pernah ter-commit
 
 ---

@@ -373,7 +373,11 @@ export class FileHandler {
         .set({ isPublic, updatedAt: new Date() })
         .where(eq(schema.berkas.id, berkas.id));
 
-      results.push(`- *${name}*: [OK]`);
+      if (isPublic) {
+        results.push(`- *${name}*: [OK]\n  Link: ${berkas.url}`);
+      } else {
+        results.push(`- *${name}*: [OK]`);
+      }
     }
 
     await this.waSender.sendText({
@@ -479,7 +483,8 @@ export class FileHandler {
       `- Status: ${berkas.isPublic ? 'PUBLIK' : 'PRIVATE'}\n` +
       `- Pemilik: ${berkas.uploadedBy}\n` +
       `- Uploaded: ${berkas.createdAt.toLocaleString()}\n` +
-      `- Keterangan: ${berkas.keterangan || '-'}`;
+      `- Keterangan: ${berkas.keterangan || '-'}` +
+      (berkas.isPublic ? `\n- Link: ${berkas.url}` : '');
 
     await this.waSender.sendText({
       chatId,
