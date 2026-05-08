@@ -1,5 +1,5 @@
 import { AppConfigService } from '@/common/config/config.service';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 
 interface SendTextPayload {
   chatId: string;
@@ -20,10 +20,62 @@ interface SendImagePayload {
 }
 
 @Injectable()
-export class WaSenderService {
+export class WaSenderService implements OnApplicationBootstrap {
   private readonly logger = new Logger(WaSenderService.name);
 
   constructor(private readonly config: AppConfigService) {}
+
+  async onApplicationBootstrap() {
+    this.logger.log('Menjadwalkan notifikasi startup server...');
+
+    // Kita beri delay agar WAHA API sudah benar-benar siap dan login
+    setTimeout(async () => {
+      const isDev = this.config.isDevMode ? 'DEV' : 'PROD';
+
+      const message =
+        `*🚀 SERVER BERHASIL DIMULAI*\n\n` +
+        `*Aplikasi:* ${this.config.appName} (${this.config.appVersion})\n` +
+        `*Mode:* ${isDev}\n` +
+        `*Waktu:* ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n` +
+        `*Node:* ${process.version}\n\n` +
+        `_Sistem berhasil dijalankan (misal setelah restart atau update CI/CD) dan siap menerima pesan._`;
+
+      if (this.config.adminLogGroupId) {
+        try {
+          await this.sendText({
+            chatId: this.config.adminLogGroupId,
+            text: message,
+          });
+          this.logger.log('Startup notification sent to Admin Log Group.');
+        } catch (e) {
+          this.logger.error(
+            `Failed to send startup notification: ${e.message}`,
+          );
+        }
+      } else if (
+        this.config.adminNumbers &&
+        this.config.adminNumbers.length > 0
+      ) {
+        // Kirim ke admin pertama saja agar tidak spam kalau admin banyak
+        const firstAdmin = this.config.adminNumbers[0];
+        try {
+          await this.sendText({
+            chatId: firstAdmin,
+            text: message,
+          });
+          this.logger.log(`Startup notification sent to Admin: ${firstAdmin}`);
+        } catch (e) {
+          this.logger.error(
+            `Failed to send startup notification: ${e.message}`,
+          );
+        }
+      } else {
+        this.logger.warn(
+          'No Admin Numbers or Admin Log Group configured for startup notification.',
+        );
+      }
+    }, 10000); // Delay 10 detik setelah NestJS ready
+  }
 
   async sendText(payload: SendTextPayload): Promise<boolean> {
     let { chatId } = payload;
