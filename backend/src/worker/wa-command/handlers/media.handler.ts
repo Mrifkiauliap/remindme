@@ -168,13 +168,42 @@ export class MediaHandler {
 
     const filename = `${namaBerkas}.${extension}`;
 
-    // Buat folder khusus dosen jika pengirim adalah dosen
-    let subFolder = '';
-    if (senderType === 'dosen' && dosenData) {
-      subFolder = dosenData.nama.replace(/[^a-zA-Z0-9]/g, '_');
+    // Buat folder berjenjang sesuai tipe pengirim
+    const subFolderParts: string[] = [];
+    if (senderType === 'admin') {
+      subFolderParts.push('admin', senderId.split('@')[0]);
+    } else if (senderType === 'dosen' && dosenData) {
+      subFolderParts.push(
+        'dosen',
+        dosenData.nama.replace(/[^a-zA-Z0-9]/g, '_'),
+      );
+    } else if (senderType === 'mahasiswa') {
+      // Cari data mahasiswa untuk ambil namanya jika ada
+      const [mhsData] = await this.drizzle.db
+        .select()
+        .from(schema.mahasiswa)
+        .where(eq(schema.mahasiswa.nomorWa, senderId))
+        .limit(1);
+
+      if (mhsData) {
+        subFolderParts.push(
+          'mahasiswa',
+          mhsData.nama.replace(/[^a-zA-Z0-9]/g, '_'),
+        );
+      } else {
+        subFolderParts.push('mahasiswa', senderId.split('@')[0]);
+      }
+    } else {
+      subFolderParts.push('others', senderId.split('@')[0]);
     }
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', subFolder);
+    const subFolderPath = path.join(...subFolderParts);
+    const uploadDir = path.join(
+      process.cwd(),
+      'public',
+      'uploads',
+      subFolderPath,
+    );
 
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -187,8 +216,11 @@ export class MediaHandler {
     await pipeline(response.body, fileStream);
 
     // 4. Simpan Info ke DB
-    // Encode subfolder agar URL aman
-    const publicUrl = `${this.config.appUrl}/public/uploads/${subFolder ? encodeURIComponent(subFolder) + '/' : ''}${filename}`;
+    // Encode subfolder parts agar URL aman dan join dengan slash
+    const urlSubFolder = subFolderParts
+      .map((p) => encodeURIComponent(p))
+      .join('/');
+    const publicUrl = `${this.config.appUrl}/public/uploads/${urlSubFolder ? urlSubFolder + '/' : ''}${filename}`;
 
     await this.drizzle.db.insert(schema.berkas).values({
       nama: namaBerkas,
@@ -199,10 +231,13 @@ export class MediaHandler {
       uploadedBy: participant || chatId,
     });
 
-    await this.waSender.sendText({
-      chatId,
-      text: `[BERHASIL] File berhasil disimpan!\n\nNama: *${namaBerkas}*\n\n_(File bersifat private secara default)_\n\nGunakan command:\n*${prefix}file send ${namaBerkas} doc* (untuk ambil file)\n*${prefix}file share ${namaBerkas} public* (untuk membagikan link publik)`,
-      reply_to: messageId,
-    });
+    // 5. Beri Notifikasi (Kecuali Dosen - Silent Save)
+    if (senderType !== 'dosen') {
+      await this.waSender.sendText({
+        chatId,
+        text: `[BERHASIL] File berhasil disimpan!\n\nNama: *${namaBerkas}*\n\n_(File bersifat private secara default)_\n\nGunakan command:\n*${prefix}file send ${namaBerkas} doc* (untuk ambil file)\n*${prefix}file share ${namaBerkas} public* (untuk membagikan link publik)`,
+        reply_to: messageId,
+      });
+    }
   }
 }

@@ -177,14 +177,27 @@ Fitur Utama:
 
 ## 12. Fitur WhatsApp File Manager
 
-- **Penyimpanan Otomatis (Dosen)**: Dosen menyimpan file otomatis saat mengirim dokumen. Mahasiswa/Admin perlu me-reply dokumen dengan command `/save`.
-- **Manajemen Privasi (`isPublic`)**: File tersimpan dengan status _private_ secara default (tidak dapat diakses bebas meski tau URL-nya).
+- **Penyimpanan Otomatis (Dosen)**: Dosen menyimpan file otomatis saat mengirim dokumen secara _silent save_ (tanpa notifikasi balasan). Mahasiswa/Admin perlu me-reply dokumen dengan command `/save`.
+- **Manajemen Privasi (`isPublic`)**: File tersimpan dengan status _private_ secara default. Untuk mencegah akses langsung melalui URL statis, sistem menggunakan `BerkasController` yang melakukan validasi ke database sebelum menyajikan file fisik. Folder `public/uploads` telah di-exclude dari `ServeStaticModule`.
+- **Hierarki Folder**: File disimpan dalam struktur folder yang rapi berdasarkan tipe pengirim:
+  - `dosen/Nama_Dosen`
+  - `mahasiswa/Nama_Mahasiswa`
+  - `admin/Nomor_WA`
+  - `others/Nomor_WA`
 - **Format File**: Penamaan file menggunakan konvensi _timestamp_ untuk mencegah duplikasi nama. Validasi ketat membatasi ukuran maksimal **20MB** melalui cek HTTP Header `content-length`.
 - **Command Management**:
-  - `.file my`: Melihat daftar file milik pengguna (filter berdasarkan `uploadedBy`).
-  - `.file share [nama] [public/private]`: Mengubah status privasi URL publik file.
+  - `.file search [kata_kunci]`: Mencari berkas berdasarkan potongan nama.
+  - `.file rename [lama] [baru]`: Mengubah nama berkas yang sudah disimpan.
+  - `.file info [nama]`: Melihat detail informasi berkas (ukuran, tipe, pemilik, dll).
+  - `.file stats`: Melihat statistik penggunaan storage server (Khusus Admin).
+  - `.file my`: Melihat daftar file milik pengguna (filter berdasarkan `uploadedBy`). Sertakan format file di list.
+  - `.file delete [nama1, nama2, ...]`: Menghapus banyak berkas sekaligus.
+  - `.file share [nama1, nama2, ...] [public/private]`: Mengubah status privasi banyak file sekaligus.
   - `.file send [nama] [doc/media]`: Meminta bot mengirim kembali file yang disimpan sebagai _Document_ (file mentah) atau _Media_ (gambar/video).
-  - `.ping`: Menampilkan statistik server (Uptime, Memory, OS, Node Version, Mode, dll). Fitur statistik detail hanya dapat diakses oleh Admin yang terdaftar di `ADMIN_NUMBERS`. Pengguna biasa hanya menerima balasan "Pong!".
+  - `.help`: Menampilkan daftar lengkap seluruh perintah yang tersedia di bot.
+  - `.ping`: Menampilkan statistik server tanpa emoji (Uptime, Memory, OS, dll).
+  - `.grup-jadwal [ID1, ID2, ...]`: Menautkan banyak jadwal sekaligus ke grup.
+  - `.grup-jadwal hapus [ID1, ID2, ...]`: Menghapus banyak tautan jadwal sekaligus.
 
 ## 13. Sistem Reminder Kuliah Dinamis
 
@@ -247,4 +260,4 @@ Fitur Utama:
 
 ---
 
-_(Dokumen diupdate: 2026-05-08)_
+_(Dokumen diupdate: 2026-05-09)_

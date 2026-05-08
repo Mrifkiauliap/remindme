@@ -167,36 +167,51 @@ export class GroupHandler {
     const subCommand = args[0].toLowerCase();
 
     if (subCommand === 'hapus') {
-      const jadwalId = parseInt(args[1], 10);
-      if (isNaN(jadwalId)) {
+      const ids = args
+        .slice(1)
+        .join(' ')
+        .split(/[, ]+/)
+        .map((id) => parseInt(id.trim(), 10))
+        .filter((id) => !isNaN(id));
+
+      if (ids.length === 0) {
         await this.waSender.sendText({
           chatId,
-          text: `[ERROR] ID Jadwal tidak valid.`,
+          text: `[ERROR] Harap berikan ID Jadwal yang ingin dihapus.`,
           reply_to,
         });
         return;
       }
 
-      await this.drizzle.db
-        .delete(schema.grupJadwal)
-        .where(
-          and(
-            eq(schema.grupJadwal.grupId, grup.id),
-            eq(schema.grupJadwal.jadwalId, jadwalId),
-          ),
-        );
+      const results: string[] = [];
+      for (const id of ids) {
+        await this.drizzle.db
+          .delete(schema.grupJadwal)
+          .where(
+            and(
+              eq(schema.grupJadwal.grupId, grup.id),
+              eq(schema.grupJadwal.jadwalId, id),
+            ),
+          );
+        results.push(`[BERHASIL] ID ${id} dihapus dari grup.`);
+      }
 
       await this.waSender.sendText({
         chatId,
-        text: `[BERHASIL] Jadwal ID ${jadwalId} berhasil dihapus dari grup ini.`,
+        text: `*Hasil Penghapusan Jadwal Grup:*\n\n${results.join('\n')}`,
         reply_to,
       });
       return;
     }
 
-    // Tambah jadwal
-    const jadwalId = parseInt(args[0], 10);
-    if (isNaN(jadwalId)) {
+    // Tambah jadwal (Multi)
+    const ids = args
+      .join(' ')
+      .split(/[, ]+/)
+      .map((id) => parseInt(id.trim(), 10))
+      .filter((id) => !isNaN(id));
+
+    if (ids.length === 0) {
       await this.waSender.sendText({
         chatId,
         text: `[ERROR] ID Jadwal tidak valid.`,
@@ -205,51 +220,47 @@ export class GroupHandler {
       return;
     }
 
-    // Cek apakah jadwal tersebut ada
-    const [jadwal] = await this.drizzle.db
-      .select()
-      .from(schema.jadwalMataKuliah)
-      .where(eq(schema.jadwalMataKuliah.id, jadwalId))
-      .limit(1);
+    const results: string[] = [];
+    for (const id of ids) {
+      // Cek apakah jadwal tersebut ada
+      const [jadwal] = await this.drizzle.db
+        .select()
+        .from(schema.jadwalMataKuliah)
+        .where(eq(schema.jadwalMataKuliah.id, id))
+        .limit(1);
 
-    if (!jadwal) {
-      await this.waSender.sendText({
-        chatId,
-        text: `[ERROR] Jadwal dengan ID ${jadwalId} tidak ditemukan.`,
-        reply_to,
+      if (!jadwal) {
+        results.push(`[TIDAK DITEMUKAN] ID ${id}: Jadwal tidak ditemukan.`);
+        continue;
+      }
+
+      // Cek apakah sudah ada
+      const [existing] = await this.drizzle.db
+        .select()
+        .from(schema.grupJadwal)
+        .where(
+          and(
+            eq(schema.grupJadwal.grupId, grup.id),
+            eq(schema.grupJadwal.jadwalId, id),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        results.push(`[GAGAL] ID ${id}: Sudah tertaut.`);
+        continue;
+      }
+
+      await this.drizzle.db.insert(schema.grupJadwal).values({
+        grupId: grup.id,
+        jadwalId: id,
       });
-      return;
+      results.push(`[BERHASIL] ID ${id}: Berhasil ditambahkan.`);
     }
-
-    // Cek apakah sudah ada
-    const [existing] = await this.drizzle.db
-      .select()
-      .from(schema.grupJadwal)
-      .where(
-        and(
-          eq(schema.grupJadwal.grupId, grup.id),
-          eq(schema.grupJadwal.jadwalId, jadwalId),
-        ),
-      )
-      .limit(1);
-
-    if (existing) {
-      await this.waSender.sendText({
-        chatId,
-        text: `[ERROR] Jadwal ID ${jadwalId} sudah tertaut di grup ini.`,
-        reply_to,
-      });
-      return;
-    }
-
-    await this.drizzle.db.insert(schema.grupJadwal).values({
-      grupId: grup.id,
-      jadwalId: jadwal.id,
-    });
 
     await this.waSender.sendText({
       chatId,
-      text: `[BERHASIL] Jadwal ID ${jadwalId} berhasil ditambahkan ke grup ini!`,
+      text: `*Hasil Penautan Jadwal Grup:*\n\n${results.join('\n')}`,
       reply_to,
     });
   }

@@ -2,7 +2,7 @@ import { AppConfigService } from '@/common/config/config.service';
 import { DrizzleService } from '@/db/drizzle.service';
 import * as schema from '@/db/schema/schema';
 import { Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, ilike } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { WaSenderService } from '../../wa-sender/wa-sender.service';
@@ -41,6 +41,16 @@ export class FileHandler {
       case 'setting':
       case 'share':
         return this.handleSettingFile(chatId, subArgs, reply_to);
+      case 'search':
+      case 'cari':
+        return this.handleSearchFile(chatId, subArgs, reply_to);
+      case 'rename':
+      case 'ganti':
+        return this.handleRenameFile(chatId, subArgs, reply_to, participant);
+      case 'info':
+        return this.handleInfoFile(chatId, subArgs, reply_to);
+      case 'stats':
+        return this.handleStatsFile(chatId, reply_to, participant);
       case 'my':
       case 'me':
         return this.handleMyListFile(chatId, reply_to, participant);
@@ -48,9 +58,19 @@ export class FileHandler {
         // Jika cuma .file [nama], asumsinya mau kirim file (send)
         if (
           args.length > 0 &&
-          !['list', 'send', 'delete', 'setting', 'share', 'my', 'me'].includes(
-            args[0],
-          )
+          ![
+            'list',
+            'send',
+            'delete',
+            'setting',
+            'share',
+            'my',
+            'me',
+            'search',
+            'rename',
+            'info',
+            'stats',
+          ].includes(args[0])
         ) {
           return this.handleSendFile(chatId, args, reply_to);
         }
@@ -87,7 +107,13 @@ export class FileHandler {
     }
 
     const dosenFolder = matchedDosen.nama.replace(/[^a-zA-Z0-9]/g, '_');
-    const dirPath = path.join(process.cwd(), 'public', 'uploads', dosenFolder);
+    const dirPath = path.join(
+      process.cwd(),
+      'public',
+      'uploads',
+      'dosen',
+      dosenFolder,
+    );
 
     if (!fs.existsSync(dirPath)) {
       await this.waSender.sendText({
@@ -109,7 +135,12 @@ export class FileHandler {
     }
 
     const listText = files
-      .map((f, i) => `${i + 1}. ${f.split('.')[0]}`)
+      .map((f, i) => {
+        const parts = f.split('.');
+        const ext = parts.pop()?.toUpperCase() || 'BIN';
+        const name = parts.join('.');
+        return `${i + 1}. ${name} [${ext}]`;
+      })
       .join('\n');
     await this.waSender.sendText({
       chatId,
@@ -140,7 +171,12 @@ export class FileHandler {
       return;
     }
 
-    const listText = myFiles.map((f, i) => `${i + 1}. ${f.nama}`).join('\n');
+    const listText = myFiles
+      .map((f, i) => {
+        const ext = f.mimetype.split('/')[1]?.toUpperCase() || 'BIN';
+        return `${i + 1}. ${f.nama} [${ext}]`;
+      })
+      .join('\n');
 
     await this.waSender.sendText({
       chatId,
@@ -242,7 +278,162 @@ export class FileHandler {
       return;
     }
 
+    const names = args
+      .join(' ')
+      .split(/[, ]+/)
+      .filter((n) => n.length > 0);
+    const results: string[] = [];
+
+    for (const namaBerkas of names) {
+      const [berkas] = await this.drizzle.db
+        .select()
+        .from(schema.berkas)
+        .where(eq(schema.berkas.nama, namaBerkas))
+        .limit(1);
+
+      if (!berkas) {
+        results.push(`- *${namaBerkas}*: [TIDAK DITEMUKAN]`);
+        continue;
+      }
+
+      try {
+        // 1. Hapus File Fisik
+        const urlParts = berkas.url.split('/public/uploads/');
+        if (urlParts.length > 1) {
+          const relativePath = decodeURIComponent(urlParts[1]);
+          const filePath = path.join(
+            process.cwd(),
+            'public',
+            'uploads',
+            relativePath,
+          );
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+
+        // 2. Hapus dari Database
+        await this.drizzle.db
+          .delete(schema.berkas)
+          .where(eq(schema.berkas.id, berkas.id));
+
+        results.push(`- *${namaBerkas}*: [BERHASIL]`);
+      } catch (error) {
+        results.push(`- *${namaBerkas}*: [ERROR] (${error.message})`);
+      }
+    }
+
+    await this.waSender.sendText({
+      chatId,
+      text: `*Hasil Penghapusan Berkas:*\n\n${results.join('\n')}`,
+      reply_to,
+    });
+  }
+
+  async handleSettingFile(chatId: string, args: string[], reply_to?: string) {
+    const prefix = this.config.wahaCommandPrefix;
+    if (args.length < 2) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Format salah! Gunakan: *${prefix}file share [nama1, nama2, ...] [public/private]*`,
+        reply_to,
+      });
+      return;
+    }
+
+    const visibility = args[args.length - 1].toLowerCase();
+    if (!['public', 'private'].includes(visibility)) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Pilihan visibilitas tidak valid! Gunakan *public* atau *private* di akhir perintah.\n\nContoh: *${prefix}file share file1, file2 public*`,
+        reply_to,
+      });
+      return;
+    }
+
+    const isPublic = visibility === 'public';
+    const namesRaw = args.slice(0, -1).join(' ');
+    const names = namesRaw.split(/[, ]+/).filter((n) => n.length > 0);
+    const results: string[] = [];
+
+    for (const name of names) {
+      const [berkas] = await this.drizzle.db
+        .select()
+        .from(schema.berkas)
+        .where(eq(schema.berkas.nama, name))
+        .limit(1);
+
+      if (!berkas) {
+        results.push(`- *${name}*: [TIDAK DITEMUKAN]`);
+        continue;
+      }
+
+      await this.drizzle.db
+        .update(schema.berkas)
+        .set({ isPublic, updatedAt: new Date() })
+        .where(eq(schema.berkas.id, berkas.id));
+
+      results.push(`- *${name}*: [OK]`);
+    }
+
+    await this.waSender.sendText({
+      chatId,
+      text: `*Hasil Update Status Akses (${visibility.toUpperCase()}):*\n\n${results.join('\n')}`,
+      reply_to,
+    });
+  }
+
+  async handleSearchFile(chatId: string, args: string[], reply_to?: string) {
+    const query = args.join(' ').trim();
+    if (!query) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Harap berikan kata kunci pencarian.`,
+        reply_to,
+      });
+      return;
+    }
+
+    const results = await this.drizzle.db
+      .select()
+      .from(schema.berkas)
+      .where(ilike(schema.berkas.nama, `%${query}%`))
+      .limit(15);
+
+    if (results.length === 0) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Berkas dengan nama mengandung "${query}" tidak ditemukan.`,
+        reply_to,
+      });
+      return;
+    }
+
+    const listText = results
+      .map((f, i) => {
+        const ext = f.mimetype.split('/')[1]?.toUpperCase() || 'BIN';
+        return `${i + 1}. ${f.nama} [${ext}]`;
+      })
+      .join('\n');
+
+    await this.waSender.sendText({
+      chatId,
+      text: `*Hasil Pencarian "${query}":*\n\n${listText}`,
+      reply_to,
+    });
+  }
+
+  async handleInfoFile(chatId: string, args: string[], reply_to?: string) {
     const namaBerkas = args[0];
+    if (!namaBerkas) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Harap berikan nama berkas.`,
+        reply_to,
+      });
+      return;
+    }
+
     const [berkas] = await this.drizzle.db
       .select()
       .from(schema.berkas)
@@ -252,17 +443,17 @@ export class FileHandler {
     if (!berkas) {
       await this.waSender.sendText({
         chatId,
-        text: `Berkas dengan nama *${namaBerkas}* tidak ditemukan.`,
+        text: `Berkas *${namaBerkas}* tidak ditemukan.`,
         reply_to,
       });
       return;
     }
 
+    // Cek ukuran file fisik jika ada
+    let sizeText = 'Unknown';
     try {
-      // 1. Hapus File Fisik
       const urlParts = berkas.url.split('/public/uploads/');
       if (urlParts.length > 1) {
-        // Decode URI component agar string %20 dll kembali menjadi spasi jika ada
         const relativePath = decodeURIComponent(urlParts[1]);
         const filePath = path.join(
           process.cwd(),
@@ -271,81 +462,192 @@ export class FileHandler {
           relativePath,
         );
         if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
+          const stats = fs.statSync(filePath);
+          sizeText = (stats.size / 1024).toFixed(2) + ' KB';
+          if (stats.size > 1024 * 1024) {
+            sizeText = (stats.size / (1024 * 1024)).toFixed(2) + ' MB';
+          }
         }
       }
+    } catch (e) {}
 
-      // 2. Hapus dari Database
-      await this.drizzle.db
-        .delete(schema.berkas)
-        .where(eq(schema.berkas.id, berkas.id));
+    const info =
+      `*Info Berkas:*\n` +
+      `- Nama: ${berkas.nama}\n` +
+      `- Tipe: ${berkas.mimetype}\n` +
+      `- Ukuran: ${sizeText}\n` +
+      `- Status: ${berkas.isPublic ? 'PUBLIK' : 'PRIVATE'}\n` +
+      `- Pemilik: ${berkas.uploadedBy}\n` +
+      `- Uploaded: ${berkas.createdAt.toLocaleString()}\n` +
+      `- Keterangan: ${berkas.keterangan || '-'}`;
 
-      await this.waSender.sendText({
-        chatId,
-        text: `[BERHASIL] Berkas *${namaBerkas}* berhasil dihapus dari sistem.`,
-        reply_to,
-      });
-    } catch (error) {
-      this.waSender.sendText({
-        chatId,
-        text: `[ERROR] Gagal menghapus berkas: ${error.message}`,
-        reply_to,
-      });
-    }
+    await this.waSender.sendText({
+      chatId,
+      text: info,
+      reply_to,
+    });
   }
 
-  async handleSettingFile(chatId: string, args: string[], reply_to?: string) {
-    const prefix = this.config.wahaCommandPrefix;
-    if (args.length < 2) {
+  async handleRenameFile(
+    chatId: string,
+    args: string[],
+    reply_to?: string,
+    participant?: string,
+  ) {
+    const oldName = args[0];
+    const newName = args[1];
+
+    if (!oldName || !newName) {
       await this.waSender.sendText({
         chatId,
-        text: `Format salah! Gunakan: *${prefix}file setting [nama_berkas] [public/private]*`,
+        text: `Gunakan: .file rename [nama_lama] [nama_baru]`,
         reply_to,
       });
       return;
     }
-
-    const namaBerkas = args[0];
-    const visibility = args[1]?.toLowerCase();
-
-    if (!['public', 'private'].includes(visibility)) {
-      await this.waSender.sendText({
-        chatId,
-        text: `Pilihan tidak valid! Gunakan *public* atau *private*.`,
-        reply_to,
-      });
-      return;
-    }
-
-    const isPublic = visibility === 'public';
 
     const [berkas] = await this.drizzle.db
       .select()
       .from(schema.berkas)
-      .where(eq(schema.berkas.nama, namaBerkas))
+      .where(eq(schema.berkas.nama, oldName))
       .limit(1);
 
     if (!berkas) {
       await this.waSender.sendText({
         chatId,
-        text: `Berkas dengan nama *${namaBerkas}* tidak ditemukan.`,
+        text: `Berkas *${oldName}* tidak ditemukan.`,
         reply_to,
       });
       return;
     }
 
-    await this.drizzle.db
-      .update(schema.berkas)
-      .set({ isPublic, updatedAt: new Date() })
-      .where(eq(schema.berkas.id, berkas.id));
+    // Cek kepemilikan (Kecuali Admin)
+    const isAdmin = this.config.adminNumbers.some((n) =>
+      (participant || chatId).includes(n),
+    );
+    if (!isAdmin && berkas.uploadedBy !== (participant || chatId)) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Maaf, Anda hanya dapat merename berkas yang Anda upload sendiri.`,
+        reply_to,
+      });
+      return;
+    }
+
+    // Cek apakah nama baru sudah dipakai
+    const [existing] = await this.drizzle.db
+      .select()
+      .from(schema.berkas)
+      .where(eq(schema.berkas.nama, newName))
+      .limit(1);
+
+    if (existing) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Nama berkas *${newName}* sudah digunakan. Harap pilih nama lain.`,
+        reply_to,
+      });
+      return;
+    }
+
+    try {
+      const urlParts = berkas.url.split('/public/uploads/');
+      if (urlParts.length > 1) {
+        const relativePath = decodeURIComponent(urlParts[1]);
+        const oldPath = path.join(
+          process.cwd(),
+          'public',
+          'uploads',
+          relativePath,
+        );
+        const folder = path.dirname(relativePath);
+        const ext = path.extname(relativePath);
+        const newRelativePath = path.join(folder, `${newName}${ext}`);
+        const newPath = path.join(
+          process.cwd(),
+          'public',
+          'uploads',
+          newRelativePath,
+        );
+
+        if (fs.existsSync(oldPath)) {
+          fs.renameSync(oldPath, newPath);
+        }
+
+        // Update DB
+        const newUrl = berkas.url.replace(
+          encodeURIComponent(relativePath),
+          encodeURIComponent(newRelativePath.replace(/\\/g, '/')),
+        );
+
+        await this.drizzle.db
+          .update(schema.berkas)
+          .set({ nama: newName, url: newUrl, updatedAt: new Date() })
+          .where(eq(schema.berkas.id, berkas.id));
+
+        await this.waSender.sendText({
+          chatId,
+          text: `[BERHASIL] Berkas berhasil diubah namanya menjadi *${newName}*.`,
+          reply_to,
+        });
+      }
+    } catch (e) {
+      await this.waSender.sendText({
+        chatId,
+        text: `[ERROR] Gagal merename berkas: ${e.message}`,
+        reply_to,
+      });
+    }
+  }
+
+  async handleStatsFile(
+    chatId: string,
+    reply_to?: string,
+    participant?: string,
+  ) {
+    const isAdmin = this.config.adminNumbers.some((n) =>
+      (participant || chatId).includes(n),
+    );
+    if (!isAdmin) {
+      await this.waSender.sendText({
+        chatId,
+        text: `Maaf, perintah ini hanya untuk Admin.`,
+        reply_to,
+      });
+      return;
+    }
+
+    const allFiles = await this.drizzle.db.select().from(schema.berkas);
+    let totalSize = 0;
+    let fileCount = allFiles.length;
+
+    for (const berkas of allFiles) {
+      try {
+        const urlParts = berkas.url.split('/public/uploads/');
+        if (urlParts.length > 1) {
+          const relativePath = decodeURIComponent(urlParts[1]);
+          const filePath = path.join(
+            process.cwd(),
+            'public',
+            'uploads',
+            relativePath,
+          );
+          if (fs.existsSync(filePath)) {
+            const stats = fs.statSync(filePath);
+            totalSize += stats.size;
+          }
+        }
+      } catch (e) {}
+    }
+
+    const sizeText = (totalSize / (1024 * 1024)).toFixed(2) + ' MB';
 
     await this.waSender.sendText({
       chatId,
-      text: `[BERHASIL] Status akses berkas *${namaBerkas}* berhasil diubah menjadi *${visibility.toUpperCase()}*.\n\n${
-        isPublic
-          ? `Link publik dapat diakses di: ${berkas.url}`
-          : 'Link file sekarang disembunyikan.'
-      }`,
+      text:
+        `*Statistik Berkas Server:*\n\n` +
+        `- Total Berkas: ${fileCount}\n` +
+        `- Total Penggunaan Disk: ${sizeText}`,
       reply_to,
     });
   }

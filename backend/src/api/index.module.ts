@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BerkasModule } from './berkas/berkas.module';
 import { DosenModule } from './dosen/dosen.module';
 import { GrupModule } from './grup/grup.module';
 import { IndexController } from './index.controller';
@@ -13,6 +14,7 @@ import { MataKuliahModule } from './mata-kuliah/mata-kuliah.module';
     DosenModule,
     MataKuliahModule,
     JadwalMatakuliahModule,
+    BerkasModule,
   ],
   controllers: [IndexController],
   providers: [],

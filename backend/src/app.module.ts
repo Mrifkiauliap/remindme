@@ -21,7 +21,7 @@ import { WorkerModule } from './worker/worker.module';
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
       serveRoot: '/public',
-      exclude: ['/api*'],
+      exclude: ['/api*', '/public/uploads*'],
     }),
   ],
   controllers: [AppController],

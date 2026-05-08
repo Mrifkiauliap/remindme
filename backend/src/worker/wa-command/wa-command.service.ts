@@ -284,10 +284,45 @@ export class WaCommandService {
           }
           break;
         }
-        default:
+        case 'help': {
+          const helpText =
+            `*DAFTAR PERINTAH REMINDER ME BRO*\n\n` +
+            `*1. Pendaftaran*\n` +
+            `- *${prefix}daftar [Nama]*: Daftar sebagai mahasiswa\n` +
+            `- *${prefix}daftar dosen [HP] [NIP] [Nama]*: Daftar dosen (Admin)\n` +
+            `- *${prefix}me*: Cek profil Anda\n\n` +
+            `*2. Jadwal & Perkuliahan*\n` +
+            `- *${prefix}jadwal hari_ini*: Cek jadwal hari ini\n` +
+            `- *${prefix}jadwal besok*: Cek jadwal besok\n` +
+            `- *${prefix}dosen [Nama]*: Cari kontak dosen\n\n` +
+            `*3. File Manager*\n` +
+            `- *${prefix}file search [kata_kunci]*: Cari berkas\n` +
+            `- *${prefix}file rename [lama] [baru]*: Ubah nama berkas\n` +
+            `- *${prefix}file info [nama]*: Detail informasi berkas\n` +
+            `- *${prefix}file stats*: Statistik storage (Admin)\n` +
+            `- *${prefix}file my*: Berkas yang Anda simpan\n` +
+            `- *${prefix}file delete [nama1, ...]**: Hapus berkas\n` +
+            `- *${prefix}file share [nama] [public/private]*: Atur akses link\n` +
+            `- *Reply file + ${prefix}save [Nama]*: Simpan berkas\n\n` +
+            `*4. Grup & Pengaturan (Khusus Grup)*\n` +
+            `- *${prefix}me-grup*: Cek info grup\n` +
+            `- *${prefix}setting reminder [on/off/menit]*: Atur pengingat\n` +
+            `- *${prefix}grup-jadwal [ID1, ID2, ...]*: Hubungkan jadwal ke grup\n\n` +
+            `*Lainnya:* ${prefix}ping, ${prefix}scan, ${prefix}help`;
+
           await this.waSender.sendText({
             chatId,
-            text: `Command *${prefix}${command}* tidak dikenali.\n\nCommand tersedia:\n${prefix}daftar\n${prefix}jadwal\n${prefix}dosen\n${prefix}me\n${prefix}file`,
+            text: helpText,
+            reply_to,
+          });
+          break;
+        }
+        default:
+          // Jika command tidak dikenali, beri tahu singkat agar tidak mengganggu
+          await this.waSender.sendText({
+            chatId,
+            text: `Perintah *${prefix}${command}* tidak ditemukan. Gunakan *${prefix}help* untuk bantuan.`,
+            reply_to,
           });
           break;
       }
@@ -303,7 +338,7 @@ export class WaCommandService {
 
       // Notif ke Admin
       const errorMsg =
-        `*🚨 BOT ERROR NOTIFICATION*\n\n` +
+        `*BOT ERROR NOTIFICATION*\n\n` +
         `*Command:* ${command}\n` +
         `*Chat ID:* ${chatId}\n` +
         `*Sender:* ${senderId}\n` +
