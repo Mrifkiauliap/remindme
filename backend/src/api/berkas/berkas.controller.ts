@@ -20,7 +20,12 @@ export class BerkasController {
 
   @Public()
   @Get('*path')
-  async getFile(@Param('path') fullPath: string, @Res() res: Response) {
+  async getFile(
+    @Param('path') rawPath: string | string[],
+    @Res() res: Response,
+  ) {
+    // NestJS *path wildcard returns string[] for multi-segment paths
+    const fullPath = Array.isArray(rawPath) ? rawPath.join('/') : rawPath;
     console.log(`[BerkasController] Request Path: ${fullPath}`);
 
     if (!fullPath) throw new NotFoundException('Path tidak ditemukan');
@@ -68,6 +73,8 @@ export class BerkasController {
       throw new NotFoundException('File fisik tidak ditemukan.');
     }
 
-    return res.sendFile(filePath);
+    return res
+      .setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      .sendFile(filePath);
   }
 }
