@@ -19,10 +19,12 @@ export class BerkasController {
   constructor(private readonly drizzle: DrizzleService) {}
 
   @Public()
-  @Get('*')
+  @Get(':path*')
   async getFile(@Param() params: any, @Res() res: Response) {
-    const fullPath = params[0]; // Mendapatkan path setelah /public/uploads/
-    if (!fullPath) throw new NotFoundException();
+    const fullPath = params['path'] + (params['0'] || '');
+    console.log(`[BerkasController] Request Path: ${fullPath}`);
+
+    if (!fullPath) throw new NotFoundException('Path tidak ditemukan');
 
     const parts = fullPath.split('/');
     const filename = parts.pop();
@@ -34,6 +36,7 @@ export class BerkasController {
   private async serveFile(folder: string, filename: string, res: Response) {
     // Ambil nama tanpa ekstensi
     const nameOnly = filename.split('.').slice(0, -1).join('.');
+    console.log(`[BerkasController] DB Search: ${nameOnly}`);
 
     // Cari di DB
     const [berkas] = await this.drizzle.db
