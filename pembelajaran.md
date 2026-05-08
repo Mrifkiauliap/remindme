@@ -192,7 +192,10 @@ Fitur Utama:
 - **Konfigurasi Level Grup**: Menggunakan tabel `pengaturan`, pengaturan reminder bersifat modular dan per-grup.
   - Command: `.setting reminder [on/off]` (menghidupkan/mematikan reminder per grup).
   - Command: `.setting reminder [menit]` (mengatur _lead time_, yaitu berapa menit sebelum kelas dimulai reminder akan dikirim, default 30 menit, rentang 5-120 menit).
-- **Logika Eksekusi (DayJS)**: Memanfaatkan pustaka `dayjs` untuk penghitungan selisih waktu (`diff`) yang lebih akurat dan mudah dikelola dibandingkan native `Date()`. Pengecekan _lead time_ per-grup dilakukan secara _on-the-fly_ pada setiap jadwal yang ditemukan.
+- **Logika Eksekusi (DayJS)**: Memanfaatkan pustaka `dayjs` untuk penghitungan selisih waktu (`diff`) yang lebih akurat. Sistem dikonfigurasi menggunakan **Asia/Jakarta (WIB)** secara global.
+  - Inisialisasi: `dayjs.tz.setDefault('Asia/Jakarta')` di `main.ts`.
+  - Environment: `TZ=Asia/Jakarta` di Docker/OS.
+  - Hal ini memastikan perbandingan waktu antara `now()` dan `jamMulai` di database (yang di-seed dalam WIB) tetap akurat meskipun server berjalan di UTC.
 - **Manajemen Jadwal via Bot**: Dosen/Admin dapat menambahkan jadwal kuliah melalui bot WhatsApp menggunakan command `.jadwal tambah [kode_matkul] [NIP] [hari] [jam] [ruangan]`.
 - **Informasi Jadwal**: Mahasiswa dapat mengecek jadwal dan info reminder menggunakan perintah `.jadwal hari_ini` dan `.jadwal besok`.
 
@@ -233,6 +236,14 @@ Fitur Utama:
 - Perintah: `.dev on`, `.dev off`, dan `.dev reset`.
 - Keamanan: Hanya nomor yang terdaftar secara fisik di `ADMIN_NUMBERS` pada file `.env` yang diizinkan mengubah status ini.
 - Status _override_ disimpan di memori (akan kembali ke setelan `.env` jika aplikasi di-restart).
+
+### G. Konfigurasi Timezone (WIB)
+
+- **Masalah:** Cron job dan `dayjs()` secara default menggunakan UTC di lingkungan server/container, sementara data seeder (`now.seed.ts`) menggunakan waktu lokal WIB (UTC+7).
+- **Solusi:**
+  1.  **Environment:** Menambahkan `TZ=Asia/Jakarta` pada `Dockerfile` dan `docker-compose.yml`.
+  2.  **Global Config:** Menggunakan plugin `utc` dan `timezone` pada `dayjs`, serta memanggil `dayjs.tz.setDefault('Asia/Jakarta')` di `main.ts` sebelum aplikasi bootstrap.
+  3.  **Result:** Semua pemanggilan `dayjs()` akan otomatis merujuk ke WIB, sehingga sinkron dengan data jadwal di database.
 
 ---
 

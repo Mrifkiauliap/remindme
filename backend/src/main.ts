@@ -1,6 +1,13 @@
 import { NestFactory } from '@nestjs/core';
+import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 import { AppModule } from './app.module';
 import { setupSwagger } from './common/config/swagger.config';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.tz.setDefault('Asia/Jakarta');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
