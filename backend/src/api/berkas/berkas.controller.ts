@@ -19,9 +19,8 @@ export class BerkasController {
   constructor(private readonly drizzle: DrizzleService) {}
 
   @Public()
-  @Get(':path*')
-  async getFile(@Param() params: any, @Res() res: Response) {
-    const fullPath = params['path'] + (params['0'] || '');
+  @Get('*path')
+  async getFile(@Param('path') fullPath: string, @Res() res: Response) {
     console.log(`[BerkasController] Request Path: ${fullPath}`);
 
     if (!fullPath) throw new NotFoundException('Path tidak ditemukan');
