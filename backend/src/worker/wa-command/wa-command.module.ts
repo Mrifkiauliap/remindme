@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { WaSenderModule } from '../wa-sender/wa-sender.module';
+import { AdminHandler } from './handlers/admin.handler';
 import { FileHandler } from './handlers/file.handler';
 import { GroupHandler } from './handlers/group.handler';
 import { MediaHandler } from './handlers/media.handler';
@@ -12,6 +13,7 @@ import { WaCommandService } from './wa-command.service';
   imports: [WaSenderModule],
   providers: [
     WaCommandService,
+    AdminHandler,
     FileHandler,
     GroupHandler,
     ScheduleHandler,

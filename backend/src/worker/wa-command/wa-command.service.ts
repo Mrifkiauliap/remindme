@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { WaSenderService } from '../wa-sender/wa-sender.service';
 
 // Handlers
+import { AdminHandler } from './handlers/admin.handler';
 import { FileHandler } from './handlers/file.handler';
 import { GroupHandler } from './handlers/group.handler';
 import { MediaHandler } from './handlers/media.handler';
@@ -21,6 +22,7 @@ export class WaCommandService {
     private readonly config: AppConfigService,
     private readonly waSender: WaSenderService,
     private readonly drizzle: DrizzleService,
+    private readonly adminHandler: AdminHandler,
     private readonly fileHandler: FileHandler,
     private readonly groupHandler: GroupHandler,
     private readonly scheduleHandler: ScheduleHandler,
@@ -240,6 +242,10 @@ export class WaCommandService {
             filename: 'qr.png',
           });
           break;
+        case 'admin':
+          await this.adminHandler.handle(chatId, senderId, args, reply_to);
+          break;
+
         case 'dev': {
           const isAdmin = this.config.adminNumbers.some((n) =>
             senderId.includes(n),

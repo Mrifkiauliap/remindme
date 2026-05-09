@@ -258,6 +258,112 @@ Fitur Utama:
   2.  **Global Config:** Menggunakan plugin `utc` dan `timezone` pada `dayjs`, serta memanggil `dayjs.tz.setDefault('Asia/Jakarta')` di `main.ts` sebelum aplikasi bootstrap.
   3.  **Result:** Semua pemanggilan `dayjs()` akan otomatis merujuk ke WIB, sehingga sinkron dengan data jadwal di database.
 
+## 15. Perbaikan & Optimasi ReminderService
+
+### A. Bug Timezone (UTC vs WIB)
+
+- **Masalah:** Meski `dayjs.tz.setDefault('Asia/Jakarta')` dipanggil di `main.ts`, Cron worker berjalan di konteks terpisah sehingga `dayjs()` tetap mengembalikan waktu UTC.
+- **Solusi:** Plugin `utc` dan `timezone` di-extend ulang secara eksplisit di dalam file `reminder.service.ts`, dan seluruh pemanggilan `dayjs()` diganti menjadi `dayjs().tz('Asia/Jakarta')`.
+
+```ts
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const TIMEZONE = "Asia/Jakarta";
+const now = dayjs().tz(TIMEZONE);
+```
+
+### B. Bug Duplikasi Cek `alreadySent`
+
+- **Masalah:** Cek apakah reminder sudah dikirim hari ini hanya menggunakan `jadwalId` + `status = 'sent'`, tanpa memperhitungkan `targetId`. Akibatnya: jika satu grup sudah menerima reminder, semua target lain (grup lain, dosen, mahasiswa) ikut di-skip.
+- **Solusi:** Cek duplikasi sekarang menggunakan kombinasi `jadwalId + targetType + targetId`, sehingga setiap penerima divalidasi secara independen.
+
+### C. Optimasi Query Pengaturan (N Queries → 1 Query)
+
+- **Masalah:** Di dalam loop grup, setiap iterasi melakukan satu query `findMany` ke tabel `pengaturan`. Jika ada 5 jadwal × 3 grup = 15 query per cron tick.
+- **Solusi:** Sebelum loop, semua data `pengaturan` diambil sekali lalu dibangun sebagai `Map<grupId, { isActive, leadTime }>`. Lookup di dalam loop menjadi O(1).
+
+```ts
+const allPengaturan = await this.drizzle.db.query.pengaturan.findMany();
+const pengaturanMap = new Map<
+  number,
+  { isActive: boolean; leadTime: number }
+>();
+// ... build map ...
+
+// Di dalam loop:
+const setting = pengaturanMap.get(grupObj.id) ?? {
+  isActive: true,
+  leadTime: 30,
+};
+```
+
+### D. Perbaikan Lead Time Dosen
+
+- **Masalah:** Bagian pengiriman reminder ke dosen tidak memiliki cek lead time dan cek duplikasi per hari, sehingga bisa mengirim pesan terlalu awal atau duplikat.
+- **Solusi:** Ditambahkan `dosenLeadTime = 30` (hardcoded default) dan cek duplikasi dengan kombinasi `jadwalId + targetType='dosen' + targetId`.
+
+### E. Format Pesan Reminder
+
+Format pesan diperbarui agar lebih informatif:
+
+- Waktu tampil sebagai `HH:mm` (bukan `HH:mm:SS`)
+- Ditambahkan info hari & tanggal
+- Ditambahkan sisa waktu dinamis (_"N menit lagi"_)
+- Tanpa emoji (sesuai preferensi)
+
+```
+*REMINDER KULIAH*
+
+*Pemrograman Web*
+Dosen   : Dr. Budi Santoso
+Ruangan : Lab 3
+Waktu   : 09:00
+Hari    : Senin, 09/05/2025
+
+Kuliah dimulai *30 menit lagi*.
+Mohon bersiap-siap!
+```
+
+---
+
+## 16. Admin Handler (Perintah Developer)
+
+### Tujuan
+
+`AdminHandler` adalah handler khusus untuk perintah-perintah tingkat admin/developer yang tidak perlu diekspos ke pengguna umum.
+
+### Command: `.admin query [tabel] [klausa opsional]`
+
+Memungkinkan admin melakukan query langsung ke database via WhatsApp tanpa perlu buka Drizzle Studio atau SSH ke server.
+
+```
+.admin query mahasiswa
+.admin query dosen WHERE nama LIKE '%budi%'
+.admin query reminder_log ORDER BY created_at DESC
+```
+
+### Fitur Keamanan Berlapis
+
+| Layer                       | Mekanisme                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| **Guard admin**             | Hanya nomor di `ADMIN_NUMBERS` yang bisa menggunakan perintah ini                  |
+| **Tabel diblokir**          | `user`, `session`, `migrations`, `__drizzle_migrations` — tidak bisa di-query      |
+| **SELECT only**             | Keyword `INSERT`, `UPDATE`, `DELETE`, `DROP`, `TRUNCATE`, `ALTER` otomatis ditolak |
+| **Sanitasi field sensitif** | `password`, `api_key`, `token`, `secret`, `hash`, dll → diganti `***`              |
+| **Limit baris**             | Maks 50 baris dari DB, hanya 16 yang ditampilkan di WA                             |
+
+### Pola Implementasi
+
+- File: `backend/src/worker/wa-command/handlers/admin.handler.ts`
+- Didaftarkan sebagai provider di `WaCommandModule`
+- Di-inject ke `WaCommandService` dan di-route dari `case 'admin'` pada switch command
+- Sanitasi dilakukan via fungsi `sanitizeRows()` yang iterasi key setiap row dan mengganti nilai field sensitif dengan `'***'`
+- Query dieksekusi menggunakan `drizzle.db.execute(sql.raw(...))` untuk mendukung klausa SQL bebas
+
 ---
 
 _(Dokumen diupdate: 2026-05-09)_

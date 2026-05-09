@@ -8,7 +8,7 @@ Bot WhatsApp pintar berbasis **NestJS** untuk mengirimkan pengingat jadwal kulia
 
 ### Reminder Kuliah Otomatis
 
-- Cron job berjalan setiap 5 menit untuk memantau jadwal perkuliahan
+- Cron job berjalan setiap 10 menit untuk memantau jadwal perkuliahan
 - Pengingat dikirim ke **grup WhatsApp kelas** maupun ke **nomor WA dosen** secara bersamaan
 - **Konfigurasi dinamis per grup**: setiap kelas bisa mengatur waktu pengingat sendiri (5–120 menit sebelum kuliah)
 
@@ -57,6 +57,16 @@ Bot WhatsApp pintar berbasis **NestJS** untuk mengirimkan pengingat jadwal kulia
 | `.me`                 | Melihat profil kamu                                             |
 | `.me-grup`            | Melihat informasi grup yang terdaftar                           |
 | `.ping`               | Cek status server (Uptime, Memori, OS - info lengkap via Admin) |
+
+### Admin / Developer
+
+> Perintah berikut hanya bisa digunakan oleh nomor yang terdaftar di `ADMIN_NUMBERS`.
+
+| Command                                | Deskripsi                                         |
+| -------------------------------------- | ------------------------------------------------- |
+| `.admin query [tabel]`                 | Tampilkan isi tabel DB (SELECT \*, maks 16 baris) |
+| `.admin query [tabel] WHERE [kondisi]` | Query dengan filter SQL tambahan                  |
+| `.dev on / off / reset`                | Aktifkan/matikan Dev Mode saat runtime            |
 
 ---
 
