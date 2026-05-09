@@ -88,7 +88,7 @@ function formatRows(
       })
       .join('\n');
 
-    return `━━━━━━━━━━ [${i + 1}] ━━━━━━━━━━\n${values}`;
+    return `━━ [${i + 1}] ━━\n${values}`;
   });
 
   const suffix =
