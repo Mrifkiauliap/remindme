@@ -182,7 +182,7 @@ export class ReminderService {
             continue;
           }
 
-          if (grupObj.nomorWa) {
+          if (grupObj.nomorWa && grupObj.nomorWa !== '0') {
             // Cek duplikasi per jadwal + target grup
             const alreadySentGrup =
               await this.drizzle.db.query.reminderLog.findFirst({
@@ -224,7 +224,7 @@ export class ReminderService {
             // Fallback: kirim ke masing-masing mahasiswa jika grup tidak punya WA
             for (const mhsGrup of grupObj.mahasiswaGrups) {
               const mhs = mhsGrup.mahasiswa;
-              if (!mhs || !mhs.nomorWa) continue;
+              if (!mhs || !mhs.nomorWa || mhs.nomorWa === '0') continue;
 
               // Cek duplikasi per jadwal + target mahasiswa
               const alreadySentMhs =
@@ -259,7 +259,7 @@ export class ReminderService {
         }
 
         // ── Kirim ke Dosen ────────────────────────────────────────────────────
-        if (jadwal.dosen.nomorWa) {
+        if (jadwal.dosen.nomorWa && jadwal.dosen.nomorWa !== '0') {
           // Dosen pakai lead time default 30 menit
           const dosenLeadTime = 30;
           if (timeDiffMinutes > dosenLeadTime || timeDiffMinutes < 0) {

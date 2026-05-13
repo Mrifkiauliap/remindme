@@ -364,6 +364,14 @@ Memungkinkan admin melakukan query langsung ke database via WhatsApp tanpa perlu
 - Sanitasi dilakukan via fungsi `sanitizeRows()` yang iterasi key setiap row dan mengganti nilai field sensitif dengan `'***'`
 - Query dieksekusi menggunakan `drizzle.db.execute(sql.raw(...))` untuk mendukung klausa SQL bebas
 
+## 17. Bug Fixes & Patching
+
+### A. Bug Panjang Karakter `nomor_wa` (WhatsApp JID)
+
+- **Masalah**: Query `insert` ke tabel `reminder_log` gagal (crash) saat mencoba menyimpan pengiriman pesan ke grup WhatsApp. Penyebabnya adalah kolom `nomor_wa` di tabel `reminder_log` memiliki batasan `varchar(20)`, sementara JID grup WhatsApp (seperti `120363048740841201@g.us`) seringkali melebihi 20 karakter (~23-30 karakter).
+- **Solusi**: Meningkatkan panjang kolom `nomor_wa` di semua tabel terkait (`dosen`, `mahasiswa`, `grup`, dan `reminder_log`) menjadi **50 karakter** untuk menampung JID WhatsApp yang panjang (terutama ID grup dan format JID baru). Selain itu, ditambahkan validasi untuk mengabaikan nomor yang bernilai `'0'`, `null`, atau kosong agar tidak menyebabkan error pengiriman.
+- **Eksekusi**: Update dilakukan pada `src/db/schema/schema.ts` dan `ReminderService`, diterapkan ke database menggunakan `npm run db:push`.
+
 ---
 
-_(Dokumen diupdate: 2026-05-09)_
+_(Dokumen diupdate: 2026-05-13)_

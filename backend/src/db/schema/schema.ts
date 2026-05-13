@@ -55,7 +55,7 @@ export const dosen = pgTable('dosen', {
   id: serial('id').primaryKey(),
   nip: varchar('nip', { length: 30 }).notNull().unique(),
   nama: varchar('nama', { length: 150 }).notNull(),
-  nomorWa: varchar('nomor_wa', { length: 20 }).notNull(),
+  nomorWa: varchar('nomor_wa', { length: 50 }).notNull(),
   email: varchar('email', { length: 100 }),
   ...timestamps,
 });
@@ -81,7 +81,7 @@ export const mahasiswa = pgTable('mahasiswa', {
   id: serial('id').primaryKey(),
   nim: varchar('nim', { length: 20 }).notNull().unique(),
   nama: varchar('nama', { length: 150 }).notNull(),
-  nomorWa: varchar('nomor_wa', { length: 20 }).notNull(),
+  nomorWa: varchar('nomor_wa', { length: 50 }).notNull(),
   email: varchar('email', { length: 100 }),
   ...timestamps,
 });
@@ -108,7 +108,7 @@ export const grup = pgTable('grup', {
   id: serial('id').primaryKey(),
   uid: varchar('uid', { length: 30 }).notNull().unique(), // cuid2
   namaGrup: varchar('nama_grup', { length: 50 }).notNull().unique(),
-  nomorWa: varchar('nomor_wa', { length: 30 }), // Optional, format: 1234567890@g.us for WhatsApp Groups
+  nomorWa: varchar('nomor_wa', { length: 50 }), // Optional, format: 1234567890@g.us for WhatsApp Groups
   keterangan: text('keterangan'),
   ...timestamps,
 });
@@ -164,7 +164,7 @@ export const reminderLog = pgTable('reminder_log', {
     .references(() => jadwalMataKuliah.id, { onDelete: 'cascade' }),
   targetType: targetTypeEnum('target_type').notNull(),
   targetId: integer('target_id').notNull(),
-  nomorWa: varchar('nomor_wa', { length: 20 }).notNull(),
+  nomorWa: varchar('nomor_wa', { length: 50 }).notNull(),
   pesan: text('pesan').notNull(),
   status: reminderStatusEnum('status').notNull().default('pending'),
   sentAt: timestamp('sent_at'),
